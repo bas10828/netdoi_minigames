@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เน็ตดอยมินิเกม</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 50% 20%, #1e0b4a 0%, #0a0a1a 70%);
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #ffd700, #ff8c00);
+      color: #1a0a2e;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      padding: 4px 18px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(28px, 7vw, 48px);
+      font-weight: 900;
+      color: #ffd700;
+      text-shadow: 0 0 24px rgba(255,215,0,.5);
+    }
+
+    h1 span {
+      color: #fff;
+    }
+
+    .sub {
+      color: rgba(255,255,255,.45);
+      font-size: 13px;
+      letter-spacing: 3px;
+      margin-top: 8px;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      width: 100%;
+      max-width: 680px;
+    }
+
+    .game-card {
+      position: relative;
+      background: linear-gradient(135deg, #1e0b4a 0%, #0b1e3d 100%);
+      border: 2px solid rgba(255,215,0,.3);
+      border-radius: 20px;
+      padding: 32px 24px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      transition: transform .2s, border-color .2s, box-shadow .2s;
+      cursor: pointer;
+    }
+
+    .game-card:hover {
+      transform: translateY(-4px);
+      border-color: #ffd700;
+      box-shadow: 0 8px 32px rgba(255,215,0,.2);
+    }
+
+    .game-card.coming-soon {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .game-card.coming-soon:hover {
+      transform: none;
+      border-color: rgba(255,215,0,.3);
+      box-shadow: none;
+    }
+
+    .game-icon {
+      font-size: 56px;
+      line-height: 1;
+    }
+
+    .game-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #ffd700;
+      text-align: center;
+    }
+
+    .game-desc {
+      font-size: 13px;
+      color: rgba(255,255,255,.5);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .game-tag {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      padding: 3px 12px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+
+    .tag-ready {
+      background: rgba(0,200,100,.15);
+      color: #00c864;
+      border: 1px solid rgba(0,200,100,.3);
+    }
+
+    .tag-soon {
+      background: rgba(255,140,0,.12);
+      color: #ff8c00;
+      border: 1px solid rgba(255,140,0,.25);
+    }
+
+    .players-badge {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      font-size: 11px;
+      color: rgba(255,255,255,.4);
+      background: rgba(255,255,255,.06);
+      padding: 3px 10px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">🎮 Office Games 🎮</div>
+  <h1>เน็ตดอย<span>มินิเกม</span></h1>
+  <p class="sub">เลือกเกมที่อยากเล่น</p>
+</header>
+
+<div class="games-grid">
+
+  <a class="game-card" href="./numtao/index.html">
+    <span class="players-badge">1 คน</span>
+    <div class="game-icon">🦀</div>
+    <div class="game-title">น้ำเต้า ปู ปลา</div>
+    <div class="game-desc">ขูดการ์ดลุ้นผลสุ่ม<br>6 สัญลักษณ์มงคล</div>
+    <span class="game-tag tag-ready">พร้อมเล่น</span>
+  </a>
+
+  <div class="game-card coming-soon">
+    <span class="players-badge">4 คน</span>
+    <div class="game-icon">🃏</div>
+    <div class="game-title">สเลฟ</div>
+    <div class="game-desc">ไพ่ผลัดกันออก<br>LAN Multiplayer</div>
+    <span class="game-tag tag-soon">กำลังทำ</span>
+  </div>
+
+</div>
+
+</body>
+</html>
