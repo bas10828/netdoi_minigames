@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>เน็ตดอยมินิเกม น้ำเต้า ปู ปลา</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #ffd700;
+      --gold-dim: rgba(255,215,0,0.15);
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: radial-gradient(ellipse at 50% 20%, #1e0b4a 0%, #0a0a1a 70%);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px 48px;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* subtle star dots */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 15% 25%, rgba(255,255,255,.25) 0%, transparent 100%),
+        radial-gradient(1px 1px at 55% 15%, rgba(255,255,255,.2)  0%, transparent 100%),
+        radial-gradient(1px 1px at 85% 55%, rgba(255,255,255,.25) 0%, transparent 100%),
+        radial-gradient(1px 1px at 35% 75%, rgba(255,255,255,.2)  0%, transparent 100%),
+        radial-gradient(1px 1px at 72% 85%, rgba(255,255,255,.2)  0%, transparent 100%),
+        radial-gradient(1px 1px at 10% 60%, rgba(255,255,255,.15) 0%, transparent 100%),
+        radial-gradient(1px 1px at 92% 30%, rgba(255,255,255,.15) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 28px 16px 16px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--gold), #ff8c00);
+      color: #1a0a2e;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      padding: 4px 18px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(26px, 7vw, 44px);
+      color: #fff;
+      font-weight: 900;
+      line-height: 1.15;
+      text-shadow: 0 0 24px rgba(255,215,0,.5), 0 0 48px rgba(255,140,0,.25);
+    }
+
+    h1 .accent { color: var(--gold); }
+
+    h1 .sub {
+      display: block;
+      font-size: .55em;
+      color: rgba(255,255,255,.6);
+      font-weight: 600;
+      letter-spacing: 4px;
+      margin-top: 6px;
+    }
+
+    /* ── CARD WRAPPER (glow ring) ── */
+    .card-wrap {
+      position: relative;
+      z-index: 1;
+      margin: 28px 0 10px;
+    }
+
+    .card-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, var(--gold), #ff4500, #ff69b4, var(--gold));
+      animation: spinGlow 4s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes spinGlow {
+      to { transform: rotate(360deg); }
+    }
+
+    .card-wrap::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 20px;
+      background: #0a0a1a;
+      z-index: 1;
+    }
+
+    /* ── SCRATCH CARD ── */
+    .scratch-card {
+      position: relative;
+      width: min(340px, 88vw);
+      height: min(220px, 57vw);
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid var(--gold);
+      z-index: 2;
+    }
+
+    .card-bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #180844 0%, #0b1e3d 50%, #180844 100%);
+    }
+
+    /* corner ornaments */
+    .card-bg::before,
+    .card-bg::after {
+      content: '✦';
+      position: absolute;
+      color: rgba(255,215,0,.2);
+      font-size: 14px;
+    }
+    .card-bg::before { top: 8px; left: 10px; }
+    .card-bg::after  { bottom: 8px; right: 10px; }
+
+    .symbols-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .symbol {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transform: translate(-50%, -50%);
+    }
+
+    .sym-emoji {
+      font-size: clamp(42px, 11vw, 62px);
+      line-height: 1;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,.6));
+      animation: popIn .45s cubic-bezier(.175,.885,.32,1.275) both;
+    }
+
+    .sym-name {
+      font-size: clamp(9px, 2.2vw, 12px);
+      color: var(--gold);
+      font-weight: 800;
+      background: rgba(0,0,0,.65);
+      padding: 2px 8px;
+      border-radius: 8px;
+      letter-spacing: 1px;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0) rotate(-15deg); opacity: 0; }
+      to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+    }
+
+    /* scratch canvas */
+    #scratchCanvas {
+      position: absolute;
+      inset: 0;
+      cursor: crosshair;
+      touch-action: none;
+      transition: opacity .55s ease;
+      z-index: 3;
+    }
+
+    /* ── HINT ── */
+    .hint {
+      position: relative;
+      z-index: 1;
+      color: rgba(255,255,255,.3);
+      font-size: 12px;
+      letter-spacing: 2px;
+      margin-bottom: 18px;
+    }
+
+    /* ── RESULT ── */
+    .result-area {
+      position: relative;
+      z-index: 1;
+      min-height: 52px;
+      width: 100%;
+      max-width: 360px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .result-text {
+      display: none;
+      background: linear-gradient(135deg, rgba(255,215,0,.12), rgba(255,140,0,.08));
+      border: 1px solid rgba(255,215,0,.35);
+      border-radius: 14px;
+      padding: 12px 24px;
+      color: var(--gold);
+      font-size: clamp(13px, 3.5vw, 17px);
+      font-weight: 700;
+      text-align: center;
+      animation: slideUp .45s ease;
+    }
+
+    .result-text.show { display: block; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+
+    /* ── BUTTON ── */
+    .btn-roll {
+      position: relative;
+      z-index: 1;
+      padding: 14px 52px;
+      font-size: clamp(16px, 4vw, 20px);
+      font-weight: 900;
+      color: #1a0a2e;
+      background: linear-gradient(135deg, var(--gold) 0%, #ff8c00 100%);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 24px rgba(255,140,0,.5), inset 0 1px 0 rgba(255,255,255,.3);
+      transition: transform .18s, box-shadow .18s;
+      font-family: inherit;
+      letter-spacing: 1px;
+    }
+
+    .btn-roll:hover:not(:disabled) {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(255,140,0,.7), inset 0 1px 0 rgba(255,255,255,.3);
+    }
+
+    .btn-roll:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 2px 12px rgba(255,140,0,.4);
+    }
+
+    .btn-roll:disabled { opacity: .55; cursor: not-allowed; }
+
+    /* ── CONFETTI ── */
+    #confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 200;
+    }
+
+    .flake {
+      position: absolute;
+      top: -12px;
+      animation: fall linear forwards;
+    }
+
+    @keyframes fall {
+      0%   { transform: translateY(0)      rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(110vh)  rotate(720deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">🎰 Mini Game 🎰</div>
+  <h1>
+    <span class="accent">เน็ตดอย</span>มินิเกม
+    <span class="sub">น้ำเต้า · ปู · ปลา</span>
+  </h1>
+</header>
+
+<div class="card-wrap">
+  <div class="scratch-card" id="scratchCard">
+    <div class="card-bg"></div>
+    <div class="symbols-layer" id="symbolsLayer"></div>
+    <canvas id="scratchCanvas"></canvas>
+  </div>
+</div>
+
+<p class="hint">✦ ขูดการ์ดเพื่อเปิดผล ✦</p>
+
+<div class="result-area">
+  <div class="result-text" id="resultText"></div>
+</div>
+
+<button class="btn-roll" id="rollBtn">🎲 ทอยเต๋า</button>
+
+<div id="confetti"></div>
+
+<script>
+  const GOURD_SVG = `<svg width="1em" height="1.35em" viewBox="0 0 50 68" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">
+    <rect x="23" y="0" width="4" height="9" rx="2" fill="#2d5c0e"/>
+    <ellipse cx="25" cy="20" rx="12" ry="13" fill="#357a10"/>
+    <ellipse cx="21" cy="16" rx="8"  ry="9"  fill="#6bbf35"/>
+    <ellipse cx="25" cy="33" rx="5.5" ry="4.5" fill="#2d6a0e"/>
+    <ellipse cx="25" cy="52" rx="17" ry="16" fill="#357a10"/>
+    <ellipse cx="20" cy="46" rx="11" ry="13" fill="#6bbf35"/>
+    <ellipse cx="17" cy="13" rx="3.5" ry="5"  fill="rgba(255,255,255,.38)" transform="rotate(-15,17,13)"/>
+    <ellipse cx="14" cy="43" rx="4.5" ry="6"  fill="rgba(255,255,255,.26)" transform="rotate(-12,14,43)"/>
+  </svg>`;
+
+  const SYMBOLS = [
+    { id: 'gourd',  name: 'น้ำเต้า', variants: [GOURD_SVG] },
+    { id: 'crab',   name: 'ปู',      variants: ['🦀'] },
+    { id: 'fish',   name: 'ปลา',    variants: ['🐟','🐠','🐡'] },
+    { id: 'shrimp', name: 'กุ้ง',   variants: ['🦐'] },
+    { id: 'tiger',  name: 'เสือ',   variants: ['🐯','🐅'] },
+    { id: 'rooster',name: 'ไก่',    variants: ['🐓','🐔','🐤','🐥'] },
+  ];
+
+  const card       = document.getElementById('scratchCard');
+  const canvas     = document.getElementById('scratchCanvas');
+  const ctx        = canvas.getContext('2d', { willReadFrequently: true });
+  const symLayer   = document.getElementById('symbolsLayer');
+  const rollBtn    = document.getElementById('rollBtn');
+  const resultEl   = document.getElementById('resultText');
+  const confettiEl = document.getElementById('confetti');
+
+  let scratching = false;
+  let revealed   = false;
+  let rolled     = false;
+  let current    = [];
+  let lastPos    = null;
+
+  /* ── canvas sizing ── */
+  function resizeCanvas() {
+    canvas.width  = card.offsetWidth;
+    canvas.height = card.offsetHeight;
+  }
+
+  /* ── draw silver scratch layer ── */
+  function drawScratch() {
+    resizeCanvas();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+
+    const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    g.addColorStop(0,   '#c0c0c0');
+    g.addColorStop(.25, '#e0e0e0');
+    g.addColorStop(.5,  '#aaaaaa');
+    g.addColorStop(.75, '#d8d8d8');
+    g.addColorStop(1,   '#b8b8b8');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // noise
+    for (let i = 0; i < 4000; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${Math.random() * .1})`;
+      ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 1, 1);
+    }
+    for (let i = 0; i < 2000; i++) {
+      ctx.fillStyle = `rgba(255,255,255,${Math.random() * .18})`;
+      ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 1, 1);
+    }
+
+
+    canvas.style.transition = 'none';
+    canvas.style.opacity = '1';
+    canvas.style.pointerEvents = 'auto';
+  }
+
+  /* ── place symbols with random positions ── */
+  function placeSymbols(syms) {
+    symLayer.innerHTML = '';
+    const W = card.offsetWidth;
+    const H = card.offsetHeight;
+    const mX = W * .18;
+    const mY = H * .22;
+    const cols = 3;
+    const cellW = (W - mX * 2) / cols;
+
+    // column-based x to avoid overlap, random y
+    const cols3 = [0, 1, 2].sort(() => Math.random() - .5);
+
+    syms.forEach((sym, i) => {
+      const col = cols3[i];
+      const x = mX + col * cellW + cellW * .15 + Math.random() * cellW * .7;
+      const y = mY + Math.random() * (H - mY * 2);
+
+      const el = document.createElement('div');
+      el.className = 'symbol';
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+      el.style.animationDelay = (i * .1) + 's';
+      el.innerHTML = `<span class="sym-emoji">${sym.emoji}</span>`;
+      symLayer.appendChild(el);
+    });
+  }
+
+  /* ── pointer helpers ── */
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width  / rect.width;
+    const sy = canvas.height / rect.height;
+    const src = e.touches ? e.touches[0] : e;
+    return {
+      x: (src.clientX - rect.left) * sx,
+      y: (src.clientY - rect.top)  * sy,
+    };
+  }
+
+  /* ── scratch erase ── */
+  function doScratch(pos) {
+    ctx.globalCompositeOperation = 'destination-out';
+
+    if (lastPos) {
+      // smooth line between points
+      ctx.beginPath();
+      ctx.moveTo(lastPos.x, lastPos.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.lineWidth = canvas.width * .18;
+      ctx.lineCap   = 'round';
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, canvas.width * .09, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalCompositeOperation = 'source-over';
+    lastPos = pos;
+
+    checkReveal();
+  }
+
+  /* ── sample pixels for % revealed ── */
+  function checkReveal() {
+    if (revealed) return;
+    const step = 5;
+    const data  = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let trans = 0, total = 0;
+    for (let i = 3; i < data.length; i += 4 * step) {
+      total++;
+      if (data[i] < 100) trans++;
+    }
+    if (trans / total > .55) autoReveal();
+  }
+
+  /* ── auto reveal ── */
+  function autoReveal() {
+    revealed = true;
+    canvas.style.transition = 'opacity .55s ease';
+    canvas.style.opacity = '0';
+    canvas.style.pointerEvents = 'none';
+    setTimeout(() => {
+      showResult();
+      spawnConfetti();
+    }, 450);
+  }
+
+  function showResult() {
+    resultEl.innerHTML = '🎯 ออก:&nbsp;&nbsp;' + current.map(s =>
+      `<span style="display:inline-flex;align-items:center;gap:4px;vertical-align:middle">
+        <span style="font-size:1.4em;line-height:1">${s.emoji}</span>
+        <span>${s.name}</span>
+      </span>`
+    ).join('<span style="opacity:.4">&nbsp;·&nbsp;</span>');
+    resultEl.classList.add('show');
+  }
+
+  /* ── confetti ── */
+  function spawnConfetti() {
+    confettiEl.innerHTML = '';
+    const colors = ['#ffd700','#ff4500','#00bfff','#ff69b4','#7fff00','#ff6347','#da70d6'];
+    for (let i = 0; i < 70; i++) {
+      const el = document.createElement('div');
+      el.className = 'flake';
+      const size = 5 + Math.random() * 8;
+      el.style.cssText = `
+        left:${Math.random()*100}%;
+        width:${size}px; height:${size}px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        border-radius:${Math.random()>.5?'50%':'2px'};
+        animation-duration:${1.6+Math.random()*2}s;
+        animation-delay:${Math.random()*.6}s;
+      `;
+      confettiEl.appendChild(el);
+    }
+    setTimeout(() => { confettiEl.innerHTML = ''; }, 3500);
+  }
+
+  /* ── roll ── */
+  function roll() {
+    revealed   = false;
+    scratching = false;
+    rolled     = true;
+    lastPos    = null;
+    resultEl.classList.remove('show');
+
+    rollBtn.disabled    = true;
+    rollBtn.textContent = '🎲 กำลังทอย...';
+
+    // roll 3 dice, pick one variant per unique symbol (same symbol = same face)
+    const dice = Array.from({ length: 3 }, () => SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]);
+    const variantPick = {};
+    dice.forEach(s => {
+      if (!variantPick[s.id])
+        variantPick[s.id] = s.variants[Math.floor(Math.random() * s.variants.length)];
+    });
+    current = dice.map(s => ({ emoji: variantPick[s.id], name: s.name }));
+
+    drawScratch();      // cover first — symbols hidden before they even mount
+    placeSymbols(current);
+
+    rollBtn.disabled    = false;
+    rollBtn.textContent = '🔄 ทอยใหม่';
+  }
+
+  /* ── events: mouse ── */
+  canvas.addEventListener('mousedown', e => {
+    if (!rolled || revealed) return;
+    scratching = true;
+    lastPos = null;
+    doScratch(getPos(e));
+  });
+  canvas.addEventListener('mousemove', e => {
+    if (!scratching) return;
+    doScratch(getPos(e));
+  });
+  document.addEventListener('mouseup', () => {
+    scratching = false;
+    lastPos = null;
+  });
+
+  /* ── events: touch ── */
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!rolled || revealed) return;
+    scratching = true;
+    lastPos = null;
+    doScratch(getPos(e));
+  }, { passive: false });
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!scratching) return;
+    doScratch(getPos(e));
+  }, { passive: false });
+  canvas.addEventListener('touchend', () => {
+    scratching = false;
+    lastPos = null;
+  });
+
+  rollBtn.addEventListener('click', roll);
+
+  // auto-start after layout
+  requestAnimationFrame(roll);
+</script>
+</body>
+</html>

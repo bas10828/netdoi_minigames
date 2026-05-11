@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เน็ตดอยมินิเกม</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --gold:#ffd700; --dark:#0a0a1a; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 50% 20%, #1e0b4a 0%, #0a0a1a 70%);
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 16px 60px;
+      user-select: none;
+    }
+    .screen { display: none; width: 100%; max-width: 420px; flex-direction: column; align-items: center; gap: 16px; }
+    .screen.active { display: flex; }
+
+    /* header */
+    .logo-badge { display: inline-block; background: linear-gradient(135deg,var(--gold),#ff8c00); color: #1a0a2e; font-size: 10px; font-weight: 900; letter-spacing: 3px; padding: 4px 18px; border-radius: 20px; text-transform: uppercase; }
+    .logo-title { font-size: clamp(28px,7vw,48px); font-weight: 900; color: var(--gold); text-shadow: 0 0 24px rgba(255,215,0,.5); text-align: center; }
+    .logo-title span { color: #fff; }
+    .logo-sub { font-size: 13px; color: rgba(255,255,255,.4); letter-spacing: 3px; }
+
+    /* auth */
+    .auth-tabs { display: flex; background: rgba(0,0,0,.25); border-radius: 50px; padding: 3px; }
+    .auth-tab { padding: 8px 28px; border-radius: 50px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; background: transparent; color: rgba(255,255,255,.5); font-family: inherit; transition: background .2s, color .2s; }
+    .auth-tab.active { background: var(--gold); color: #1a0a2e; }
+    .auth-form { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+    .auth-form.hidden { display: none; }
+    input[type=text], input[type=password] {
+      width: 100%; padding: 13px 20px; font-size: 16px;
+      border: 2px solid rgba(255,215,0,.3); border-radius: 50px;
+      background: rgba(0,0,0,.35); color: #fff; outline: none; text-align: center; font-family: inherit;
+    }
+    input::placeholder { color: rgba(255,255,255,.35); }
+    input:focus { border-color: var(--gold); }
+    .btn { padding: 12px 36px; font-size: 15px; font-weight: 800; border: none; border-radius: 50px; cursor: pointer; font-family: inherit; transition: transform .15s, box-shadow .15s, opacity .15s; width: 100%; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-gold { background: linear-gradient(135deg,var(--gold),#ff8c00); color: #1a0a2e; }
+    .btn-gold:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,165,0,.5); }
+    .btn-ghost { background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 12px; padding: 8px 20px; }
+    .btn-ghost:hover { background: rgba(255,255,255,.14); }
+    .err { color: #e74c3c; font-size: 13px; min-height: 18px; text-align: center; }
+    .ok  { color: #00c864; font-size: 13px; min-height: 18px; text-align: center; }
+
+    /* hub */
+    .hub-user { font-size: 12px; color: rgba(255,255,255,.35); }
+    .hub-user span { color: var(--gold); font-weight: 700; }
+    .games-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; width: 100%; }
+    .game-card {
+      background: linear-gradient(135deg,#1e0b4a 0%,#0b1e3d 100%);
+      border: 2px solid rgba(255,215,0,.3); border-radius: 20px;
+      padding: 28px 20px; text-decoration: none; color: inherit;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      transition: transform .2s, border-color .2s, box-shadow .2s; cursor: pointer;
+    }
+    .game-card:hover { transform: translateY(-4px); border-color: var(--gold); box-shadow: 0 8px 32px rgba(255,215,0,.2); }
+    .game-icon { font-size: 48px; line-height: 1; }
+    .game-title { font-size: 18px; font-weight: 800; color: var(--gold); text-align: center; }
+    .game-desc { font-size: 12px; color: rgba(255,255,255,.45); text-align: center; line-height: 1.5; }
+    .game-tag { font-size: 10px; font-weight: 700; letter-spacing: 2px; padding: 3px 12px; border-radius: 20px; text-transform: uppercase; background: rgba(0,200,100,.15); color: #00c864; border: 1px solid rgba(0,200,100,.3); }
+  </style>
+</head>
+<body>
+
+<!-- Auth screen -->
+<div id="authScreen" class="screen">
+  <div class="logo-badge">🎮 Office Games 🎮</div>
+  <div class="logo-title">เน็ตดอย<span>มินิเกม</span></div>
+  <div class="logo-sub">เข้าสู่ระบบเพื่อเล่น</div>
+  <div class="auth-tabs">
+    <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+    <button class="auth-tab"        id="tabReg"   onclick="switchTab('reg')">สมัครสมาชิก</button>
+  </div>
+  <div class="auth-form" id="loginForm">
+    <input type="text"     id="loginUser" placeholder="ชื่อผู้ใช้" maxlength="20" autocomplete="off">
+    <input type="password" id="loginPass" placeholder="รหัสผ่าน"   maxlength="40" autocomplete="off">
+    <button class="btn btn-gold" id="loginBtn">เข้าสู่ระบบ</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+  <div class="auth-form hidden" id="regForm">
+    <input type="text"     id="regUser" placeholder="ชื่อผู้ใช้ (สูงสุด 20 ตัว)" maxlength="20" autocomplete="off">
+    <input type="password" id="regPass" placeholder="รหัสผ่าน (4+ ตัวอักษร)"    maxlength="40" autocomplete="off">
+    <button class="btn btn-gold" id="regBtn">สมัครสมาชิก</button>
+    <div class="err" id="regErr"></div>
+    <div class="ok"  id="regOk"></div>
+  </div>
+</div>
+
+<!-- Hub screen -->
+<div id="hubScreen" class="screen">
+  <div class="logo-badge">🎮 Office Games 🎮</div>
+  <div class="logo-title">เน็ตดอย<span>มินิเกม</span></div>
+  <div class="hub-user">สวัสดี, <span id="hubName"></span></div>
+  <div class="games-grid">
+    <a class="game-card" href="./slave/">
+      <div class="game-icon">🃏</div>
+      <div class="game-title">สเลฟ</div>
+      <div class="game-desc">ไพ่ผลัดกันออก<br>LAN Multiplayer 4 คน</div>
+      <span class="game-tag">พร้อมเล่น</span>
+    </a>
+    <a class="game-card" href="./jigsaw/">
+      <div class="game-icon">🧩</div>
+      <div class="game-title">จิกซอ</div>
+      <div class="game-desc">ต่อภาพอุปกรณ์<br>บันทึกสถิติ</div>
+      <span class="game-tag">พร้อมเล่น</span>
+    </a>
+  </div>
+  <button class="btn btn-ghost" id="logoutBtn">ออกจากระบบ</button>
+</div>
+
+
+<script>
+const TOKEN_KEY = 'netdoiToken';
+
+function switchTab(tab) {
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabReg').classList.toggle('active', tab === 'reg');
+  document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('regForm').classList.toggle('hidden', tab !== 'reg');
+}
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+}
+
+function goHub(username) {
+  document.getElementById('hubName').textContent = username;
+  show('hubScreen');
+}
+
+async function authReq(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  return { ok: r.ok, data: await r.json() };
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  document.getElementById('loginErr').textContent = '';
+  if (!username || !password) { document.getElementById('loginErr').textContent = 'กรุณากรอกให้ครบ'; return; }
+  document.getElementById('loginBtn').disabled = true;
+  const { ok, data } = await authReq('/api/login', { username, password });
+  document.getElementById('loginBtn').disabled = false;
+  if (!ok) { document.getElementById('loginErr').textContent = data.error; return; }
+  localStorage.setItem(TOKEN_KEY, data.token);
+  goHub(data.username);
+});
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginBtn').click(); });
+
+document.getElementById('regBtn').addEventListener('click', async () => {
+  const username = document.getElementById('regUser').value.trim();
+  const password = document.getElementById('regPass').value;
+  document.getElementById('regErr').textContent = ''; document.getElementById('regOk').textContent = '';
+  if (!username || !password) { document.getElementById('regErr').textContent = 'กรุณากรอกให้ครบ'; return; }
+  document.getElementById('regBtn').disabled = true;
+  const { ok, data } = await authReq('/api/register', { username, password });
+  document.getElementById('regBtn').disabled = false;
+  if (!ok) { document.getElementById('regErr').textContent = data.error; return; }
+  localStorage.setItem(TOKEN_KEY, data.token);
+  document.getElementById('regOk').textContent = 'สมัครสำเร็จ!';
+  setTimeout(() => goHub(data.username), 600);
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem(TOKEN_KEY);
+  show('authScreen');
+});
+
+
+window.addEventListener('load', () => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (token) {
+    try {
+      const p = JSON.parse(atob(token.split('.')[1]));
+      if (p.exp * 1000 > Date.now()) { goHub(p.username); return; }
+    } catch {}
+    localStorage.removeItem(TOKEN_KEY);
+  }
+  show('authScreen');
+});
+</script>
+</body>
+</html>
