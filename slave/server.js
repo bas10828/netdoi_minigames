@@ -63,7 +63,7 @@ const SUIT_SYM        = ['♣','♦','♥','♠'];
 const RANK_DISP       = { 11:'J', 12:'Q', 13:'K', 14:'A', 15:'2' };
 const RANK_NAMES      = ['คิง 👑','ควีน 👸','สามัญชน 🧑','สเลฟ 😵'];
 const BOT_NAMES       = ['VOID 🖤','REAPER ☠️','APEX ⚡'];
-const BOT_THINK       = 2200;
+const BOT_THINK       = 3000;
 const AUTO_PASS_DELAY = 30000;
 const BOT_TAKEOVER_MS = Math.round(AUTO_PASS_DELAY * 0.75);
 
