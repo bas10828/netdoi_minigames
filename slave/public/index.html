@@ -158,14 +158,17 @@
     .rank-tbl { width:100%; max-width:340px; border-collapse:collapse; }
     .rank-tbl th { font-size:11px; color:rgba(255,255,255,.4); letter-spacing:1px; padding:8px 16px; text-align:left; border-bottom:1px solid rgba(255,255,255,.1); }
     .rank-tbl td { padding:10px 16px; border-bottom:1px solid rgba(255,255,255,.07); font-size:15px; }
-    .hub-link { position:fixed; top:10px; left:12px; font-size:11px; color:rgba(255,255,255,.3); text-decoration:none; z-index:100; }
-    .hub-link:hover { color:rgba(255,255,255,.6); }
+    .home-btn { position:fixed; top:10px; left:12px; font-size:11px; font-weight:900; letter-spacing:2px; color:var(--gold); text-decoration:none; z-index:200; background:rgba(0,0,0,.35); padding:5px 12px; border-radius:20px; border:1px solid rgba(255,215,0,.3); }
+    .home-btn:hover { border-color:var(--gold); background:rgba(0,0,0,.55); }
+    .lobby-back-btn { position:fixed; top:10px; right:12px; font-size:11px; color:rgba(255,255,255,.4); background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.12); padding:5px 12px; border-radius:20px; cursor:pointer; z-index:200; font-family:inherit; display:none; }
+    .lobby-back-btn:hover { color:rgba(255,255,255,.75); }
   </style>
 </head>
 <body>
 
 <div id="timerBar"><div id="timerFill"></div></div>
-<a class="hub-link" href="../index.html">← Hub</a>
+<a class="home-btn" href="../">NETDOI</a>
+<button class="lobby-back-btn" id="backToLobbyBtn">← Lobby</button>
 <div id="toast"></div>
 <div id="bombToast"></div>
 
@@ -311,6 +314,7 @@ let myName        = '';
 let selIdx        = new Set();
 let lastState     = null;
 let stateWatchdog = null;
+let skipRejoin    = false;
 
 // ── Turn timer ────────────────────────────────────────────────────────────────
 const TURN_SEC = 30;
@@ -336,9 +340,18 @@ function stopTimer() {
 
 // ── Screens ───────────────────────────────────────────────────────────────────
 const SCREENS = ['loadingScreen','authScreen','mainLobbyScreen','lobbyScreen','cardSwapScreen','gameScreen','roundEndScreen','gameOverScreen'];
+const IN_GAME_SCREENS = new Set(['gameScreen','roundEndScreen','cardSwapScreen']);
 function show(id) {
   SCREENS.forEach(s => document.getElementById(s).classList.toggle('active', s===id));
   if (id !== 'gameScreen') stopTimer();
+  document.getElementById('backToLobbyBtn').style.display = IN_GAME_SCREENS.has(id) ? 'block' : 'none';
+}
+
+function backToLobby() {
+  skipRejoin = true;
+  if (socket) socket.disconnect();
+  const token = localStorage.getItem('slaveToken');
+  if (token) { connectSocket(token); } else { show('authScreen'); }
 }
 
 function switchTab(tab) {
@@ -372,7 +385,15 @@ function connectSocket(token) {
   socket = io({ auth:{ token } });
   bindSocketEvents();
   socket.on('connect_error', () => { localStorage.removeItem('slaveToken'); show('authScreen'); document.getElementById('loginErr').textContent='เชื่อมต่อไม่ได้ กรุณา login ใหม่'; });
-  socket.on('connect', () => socket.emit('tryRejoin'));
+  socket.on('connect', () => {
+    if (skipRejoin) {
+      skipRejoin = false;
+      document.getElementById('mainLobbyName').textContent = myName;
+      socket.emit('getRooms'); show('mainLobbyScreen');
+    } else {
+      socket.emit('tryRejoin');
+    }
+  });
 }
 
 document.getElementById('loginBtn').addEventListener('click', async () => {
@@ -741,6 +762,7 @@ document.getElementById('playBtn').addEventListener('click', () => { if(!socket|
 document.getElementById('passBtn').addEventListener('click', () => { if(socket) socket.emit('pass'); });
 document.getElementById('r2Btn').addEventListener('click', () => { if(socket) socket.emit('startRound2'); });
 document.getElementById('newGameBtn').addEventListener('click', () => { if(socket) socket.emit('newGame'); });
+document.getElementById('backToLobbyBtn').addEventListener('click', backToLobby);
 </script>
 </body>
 </html>
