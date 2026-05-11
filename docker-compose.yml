@@ -2,8 +2,6 @@ services:
   hub:
     image: nginx:alpine
     container_name: netdoi_minigames_hub
-    ports:
-      - "8081:80"
     volumes:
       - ./index.html:/usr/share/nginx/html/index.html:ro
       - ./numtao:/usr/share/nginx/html/numtao:ro
@@ -13,8 +11,6 @@ services:
   slave:
     build: ./slave
     container_name: netdoi_minigames_slave
-    ports:
-      - "3003:3000"
     env_file:
       - ./slave/.env
     restart: unless-stopped
