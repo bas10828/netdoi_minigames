@@ -5,6 +5,7 @@ services:
     volumes:
       - ./index.html:/usr/share/nginx/html/index.html:ro
       - ./numtao:/usr/share/nginx/html/numtao:ro
+      - ./jigsaw:/usr/share/nginx/html/jigsaw:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     restart: unless-stopped
 
