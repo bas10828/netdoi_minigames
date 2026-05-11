@@ -351,7 +351,7 @@ function show(id) {
 function backToLobby() {
   skipRejoin = true;
   if (socket) socket.disconnect();
-  const token = localStorage.getItem('slaveToken');
+  const token = localStorage.getItem('netdoiToken');
   if (token) { connectSocket(token); } else { show('authScreen'); }
 }
 
@@ -385,7 +385,7 @@ function connectSocket(token) {
   if (socket) socket.disconnect();
   socket = io({ auth:{ token } });
   bindSocketEvents();
-  socket.on('connect_error', () => { localStorage.removeItem('slaveToken'); show('authScreen'); document.getElementById('loginErr').textContent='เชื่อมต่อไม่ได้ กรุณา login ใหม่'; });
+  socket.on('connect_error', () => { localStorage.removeItem('netdoiToken'); window.location.href = '/'; });
   socket.on('connect', () => {
     if (skipRejoin) {
       skipRejoin = false;
@@ -406,7 +406,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
   const { ok, data } = await authRequest('/api/login', { username, password });
   document.getElementById('loginBtn').disabled = false;
   if (!ok) { document.getElementById('loginErr').textContent=data.error; return; }
-  localStorage.setItem('slaveToken', data.token); myName=data.username; connectSocket(data.token);
+  localStorage.setItem('netdoiToken', data.token); myName=data.username; connectSocket(data.token);
 });
 document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginBtn').click(); });
 
@@ -419,27 +419,27 @@ document.getElementById('regBtn').addEventListener('click', async () => {
   const { ok, data } = await authRequest('/api/register', { username, password });
   document.getElementById('regBtn').disabled = false;
   if (!ok) { document.getElementById('regErr').textContent=data.error; return; }
-  localStorage.setItem('slaveToken', data.token); myName=data.username;
+  localStorage.setItem('netdoiToken', data.token); myName=data.username;
   document.getElementById('regOk').textContent='สมัครสำเร็จ! กำลังเข้าเกม…';
   setTimeout(() => connectSocket(data.token), 800);
 });
 
 function doLogout() {
-  localStorage.removeItem('slaveToken'); if(socket) socket.disconnect();
+  localStorage.removeItem('netdoiToken'); if(socket) socket.disconnect();
   socket=null; myName=''; show('authScreen');
 }
 document.getElementById('logoutBtnMain').addEventListener('click', doLogout);
 
 window.addEventListener('load', () => {
-  const token = localStorage.getItem('slaveToken');
+  const token = localStorage.getItem('netdoiToken');
   if (token) {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (payload.exp*1000 > Date.now()) { myName=payload.username; show('loadingScreen'); connectSocket(token); return; }
     } catch {}
-    localStorage.removeItem('slaveToken');
+    localStorage.removeItem('netdoiToken');
   }
-  show('authScreen');
+  window.location.href = '/';
 });
 
 function resetWatchdog() {

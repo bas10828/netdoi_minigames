@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>จิกซอ | เน็ตดอยมินิเกม</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --gold: #ffd700; --bg: #0a0a1a; }
+    body { min-height: 100vh; background: radial-gradient(ellipse at 50% 20%, #1e0b4a 0%, #0a0a1a 70%); color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; -webkit-user-select: none; }
+
+    .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; gap: 16px; }
+    .screen.active { display: flex; }
+
+    .home-btn { position: fixed; top: 10px; left: 12px; font-size: 11px; font-weight: 900; letter-spacing: 2px; color: var(--gold); text-decoration: none; z-index: 200; background: rgba(0,0,0,.35); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,215,0,.3); }
+    .home-btn:hover { border-color: var(--gold); }
+
+    .title { font-size: clamp(22px,6vw,36px); font-weight: 900; color: var(--gold); text-shadow: 0 0 20px rgba(255,215,0,.4); }
+    .subtitle { font-size: 13px; color: rgba(255,255,255,.4); letter-spacing: 1px; }
+
+    .btn { padding: 11px 32px; font-size: 14px; font-weight: 800; border: none; border-radius: 50px; cursor: pointer; font-family: inherit; transition: transform .15s, box-shadow .15s, opacity .15s; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-gold { background: linear-gradient(135deg, var(--gold), #ff8c00); color: #1a0a2e; }
+    .btn-gold:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,165,0,.5); }
+    .btn-gray { background: rgba(255,255,255,.12); color: rgba(255,255,255,.8); }
+    .btn-gray:hover:not(:disabled) { background: rgba(255,255,255,.2); }
+
+    /* image select */
+    .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 12px; width: 100%; max-width: 560px; }
+    .img-card { border-radius: 14px; overflow: hidden; border: 2px solid rgba(255,255,255,.15); cursor: pointer; transition: border-color .2s, transform .2s; position: relative; }
+    .img-card:hover { border-color: var(--gold); transform: translateY(-3px); }
+    .img-card.selected { border-color: var(--gold); box-shadow: 0 0 20px rgba(255,215,0,.4); }
+    .img-card img { width: 100%; height: 100px; object-fit: cover; display: block; }
+    .img-card-name { font-size: 11px; color: rgba(255,255,255,.7); text-align: center; padding: 6px 4px; background: rgba(0,0,0,.4); }
+
+    /* difficulty select */
+    .diff-grid { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .diff-card { background: rgba(255,255,255,.06); border: 2px solid rgba(255,255,255,.15); border-radius: 16px; padding: 20px 24px; cursor: pointer; transition: border-color .2s, background .2s; text-align: center; min-width: 120px; }
+    .diff-card:hover, .diff-card.selected { border-color: var(--gold); background: rgba(255,215,0,.08); }
+    .diff-label { font-size: 16px; font-weight: 800; color: var(--gold); }
+    .diff-sub { font-size: 12px; color: rgba(255,255,255,.4); margin-top: 4px; }
+
+    /* game screen */
+    #gameScreen { justify-content: flex-start; padding-top: 60px; }
+    .game-topbar { position: fixed; top: 0; left: 0; right: 0; height: 50px; background: rgba(0,0,0,.6); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; z-index: 100; }
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+    .timer-display { font-size: 18px; font-weight: 900; color: var(--gold); letter-spacing: 2px; min-width: 60px; }
+    .progress-text { font-size: 12px; color: rgba(255,255,255,.5); }
+    .preview-btn { font-size: 11px; padding: 5px 12px; border-radius: 20px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.7); cursor: pointer; font-family: inherit; }
+    .preview-btn:hover { background: rgba(255,255,255,.2); }
+
+    #boardWrap { position: relative; border-radius: 8px; overflow: hidden; }
+    #board { position: relative; }
+    .ghost { position: absolute; border: 1px dashed rgba(255,255,255,.12); box-sizing: border-box; pointer-events: none; }
+    .piece { position: absolute; box-sizing: border-box; cursor: grab; border: 1.5px solid rgba(255,255,255,.25); border-radius: 2px; transition: box-shadow .1s; }
+    .piece:active { cursor: grabbing; }
+    .piece.placed { cursor: default; border-color: rgba(255,255,255,.15); pointer-events: none; }
+    .piece.near { box-shadow: 0 0 12px rgba(255,215,0,.8); border-color: var(--gold); }
+
+    #previewOverlay { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 500; display: none; align-items: center; justify-content: center; }
+    #previewOverlay.active { display: flex; }
+    #previewOverlay img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 12px; border: 2px solid rgba(255,215,0,.4); }
+
+    /* complete screen */
+    .result-time { font-size: 48px; font-weight: 900; color: var(--gold); letter-spacing: 2px; }
+    .result-sub { font-size: 14px; color: rgba(255,255,255,.5); }
+    .rank-badge { font-size: 28px; font-weight: 900; }
+    .lb-table { width: 100%; max-width: 380px; border-collapse: collapse; }
+    .lb-table th { font-size: 11px; color: rgba(255,255,255,.4); letter-spacing: 1px; padding: 8px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.1); }
+    .lb-table td { padding: 9px 14px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 14px; }
+    .lb-table tr.me td { color: var(--gold); font-weight: 700; }
+    .lb-table tr.top1 td:first-child::before { content: '🥇 '; }
+    .lb-table tr.top2 td:first-child::before { content: '🥈 '; }
+    .lb-table tr.top3 td:first-child::before { content: '🥉 '; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  </style>
+</head>
+<body>
+<a class="home-btn" href="/">NETDOI</a>
+
+<!-- Image Select -->
+<div id="selectScreen" class="screen">
+  <div class="title">🧩 จิกซอ</div>
+  <div class="subtitle">เลือกภาพที่ต้องการต่อ</div>
+  <div class="img-grid" id="imgGrid"></div>
+  <button class="btn btn-gold" id="selectNextBtn" disabled>เลือกความยาก →</button>
+</div>
+
+<!-- Difficulty Select -->
+<div id="diffScreen" class="screen">
+  <div class="title">เลือกความยาก</div>
+  <div id="diffPreview" style="width:200px;height:130px;object-fit:cover;border-radius:12px;overflow:hidden;border:2px solid rgba(255,215,0,.4)">
+    <img id="diffPreviewImg" style="width:100%;height:100%;object-fit:cover" src="" alt="">
+  </div>
+  <div class="diff-grid">
+    <div class="diff-card" data-diff="easy">
+      <div class="diff-label">ง่าย</div>
+      <div class="diff-sub">3×3 · 9 ชิ้น</div>
+    </div>
+    <div class="diff-card" data-diff="medium">
+      <div class="diff-label">ปานกลาง</div>
+      <div class="diff-sub">4×4 · 16 ชิ้น</div>
+    </div>
+    <div class="diff-card" data-diff="hard">
+      <div class="diff-label">ยาก</div>
+      <div class="diff-sub">6×6 · 36 ชิ้น</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button class="btn btn-gray" id="diffBackBtn">← กลับ</button>
+    <button class="btn btn-gold" id="diffStartBtn" disabled>เริ่มเลย!</button>
+  </div>
+</div>
+
+<!-- Game -->
+<div id="gameScreen" class="screen">
+  <div class="game-topbar">
+    <div class="topbar-left">
+      <div class="timer-display" id="timerDisplay">0:00</div>
+      <div class="progress-text" id="progressText"></div>
+    </div>
+    <button class="preview-btn" id="previewBtn">👁 ดูภาพ</button>
+  </div>
+  <div id="boardWrap"><div id="board"></div></div>
+</div>
+
+<!-- Preview Overlay -->
+<div id="previewOverlay">
+  <img id="previewImg" src="" alt="" onclick="document.getElementById('previewOverlay').classList.remove('active')">
+</div>
+
+<!-- Complete -->
+<div id="completeScreen" class="screen">
+  <div class="title">🎉 สำเร็จ!</div>
+  <div class="result-time" id="resultTime"></div>
+  <div class="result-sub" id="resultSub"></div>
+  <div class="rank-badge" id="rankBadge"></div>
+  <div style="font-size:13px;color:rgba(255,255,255,.4);letter-spacing:1px">TOP 10</div>
+  <table class="lb-table">
+    <thead><tr><th>#</th><th>ชื่อ</th><th>เวลาดีสุด</th></tr></thead>
+    <tbody id="lbBody"></tbody>
+  </table>
+  <div class="btn-row">
+    <button class="btn btn-gold" id="playAgainBtn">เล่นอีกครั้ง</button>
+    <button class="btn btn-gray" id="changeImgBtn">เปลี่ยนภาพ</button>
+  </div>
+</div>
+
+<script>
+const TOKEN_KEY = 'netdoiToken';
+const IMAGES = [
+  { file: '6432.jpg', name: 'Hikvision ColorVu' },
+  { file: '6433.jpg', name: 'Hikvision AcuSense' },
+  { file: '6434.jpg', name: 'Dahua Monitor' },
+  { file: '6435.jpg', name: 'EZVIZ Solar' },
+  { file: '6436.jpg', name: 'EZVIZ Smart Home' },
+];
+const DIFFS = { easy: { cols: 3, rows: 3 }, medium: { cols: 4, rows: 4 }, hard: { cols: 6, rows: 6 } };
+
+let selectedImg = null, selectedDiff = null;
+let boardW = 0, boardH = 0, cols = 0, rows = 0;
+let pieces = [], placedCount = 0;
+let timerSec = 0, timerInterval = null, started = false;
+let dragging = null, dragOffX = 0, dragOffY = 0;
+let myUsername = null;
+
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function fmtTime(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}` ; }
+
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); }
+
+// ── Auth check ────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const token = getToken();
+  if (!token) { window.location.href = '/'; return; }
+  try {
+    const p = JSON.parse(atob(token.split('.')[1]));
+    if (p.exp * 1000 <= Date.now()) { localStorage.removeItem(TOKEN_KEY); window.location.href = '/'; return; }
+    myUsername = p.username;
+  } catch { window.location.href = '/'; return; }
+  buildImageGrid();
+  show('selectScreen');
+});
+
+// ── Image select ──────────────────────────────────────────────────────────────
+function buildImageGrid() {
+  const grid = document.getElementById('imgGrid');
+  IMAGES.forEach(img => {
+    const card = document.createElement('div');
+    card.className = 'img-card';
+    card.innerHTML = `<img src="./images/${img.file}" alt="${img.name}" loading="lazy"><div class="img-card-name">${img.name}</div>`;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.img-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedImg = img;
+      document.getElementById('selectNextBtn').disabled = false;
+    });
+    grid.appendChild(card);
+  });
+}
+
+document.getElementById('selectNextBtn').addEventListener('click', () => {
+  if (!selectedImg) return;
+  document.getElementById('diffPreviewImg').src = `./images/${selectedImg.file}`;
+  document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+  selectedDiff = null;
+  document.getElementById('diffStartBtn').disabled = true;
+  show('diffScreen');
+});
+
+// ── Difficulty select ─────────────────────────────────────────────────────────
+document.querySelectorAll('.diff-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedDiff = card.dataset.diff;
+    document.getElementById('diffStartBtn').disabled = false;
+  });
+});
+document.getElementById('diffBackBtn').addEventListener('click', () => show('selectScreen'));
+document.getElementById('diffStartBtn').addEventListener('click', startGame);
+
+// ── Game ──────────────────────────────────────────────────────────────────────
+function startGame() {
+  if (!selectedImg || !selectedDiff) return;
+  const cfg = DIFFS[selectedDiff];
+  cols = cfg.cols; rows = cfg.rows;
+  placedCount = 0; pieces = []; timerSec = 0; started = false;
+  clearInterval(timerInterval);
+  document.getElementById('timerDisplay').textContent = '0:00';
+
+  const img = new Image();
+  img.onload = () => {
+    const aspect = img.naturalWidth / img.naturalHeight;
+    const maxW = Math.min(window.innerWidth - 16, 560);
+    const maxH = window.innerHeight - 80;
+    if (maxW / aspect <= maxH) { boardW = maxW; boardH = Math.round(maxW / aspect); }
+    else { boardH = maxH; boardW = Math.round(maxH * aspect); }
+
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+    board.style.width = boardW + 'px';
+    board.style.height = boardH + 'px';
+
+    const pw = boardW / cols, ph = boardH / rows;
+
+    // Ghost grid
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const g = document.createElement('div');
+        g.className = 'ghost';
+        g.style.cssText = `left:${c*pw}px;top:${r*ph}px;width:${pw}px;height:${ph}px`;
+        board.appendChild(g);
+      }
+    }
+
+    // Pieces (shuffled order)
+    const order = Array.from({length: rows*cols}, (_,i) => i).sort(() => Math.random() - .5);
+    order.forEach(idx => {
+      const r = Math.floor(idx / cols), c = idx % cols;
+      const piece = document.createElement('div');
+      piece.className = 'piece';
+      piece.dataset.row = r; piece.dataset.col = c;
+      piece.dataset.tx = c * pw; piece.dataset.ty = r * ph;
+      piece.style.cssText = `
+        width:${pw}px; height:${ph}px;
+        background-image:url('./images/${selectedImg.file}');
+        background-size:${boardW}px ${boardH}px;
+        background-position:${-(c*pw)}px ${-(r*ph)}px;
+        left:${Math.random()*(boardW-pw)}px;
+        top:${Math.random()*(boardH-ph)}px;
+        z-index:10;
+      `;
+      piece.addEventListener('mousedown', e => startDrag(e, piece));
+      piece.addEventListener('touchstart', e => startDrag(e, piece), { passive: false });
+      board.appendChild(piece);
+      pieces.push(piece);
+    });
+
+    document.getElementById('progressText').textContent = `0 / ${cols*rows}`;
+    document.getElementById('previewImg').src = `./images/${selectedImg.file}`;
+    show('gameScreen');
+    startTimer();
+  };
+  img.src = `./images/${selectedImg.file}`;
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timerSec++;
+    document.getElementById('timerDisplay').textContent = fmtTime(timerSec);
+  }, 1000);
+}
+
+// ── Drag & drop ───────────────────────────────────────────────────────────────
+function startDrag(e, piece) {
+  if (piece.classList.contains('placed')) return;
+  e.preventDefault();
+  dragging = piece;
+  piece.style.zIndex = 500;
+  const boardRect = document.getElementById('board').getBoundingClientRect();
+  const cx = e.touches ? e.touches[0].clientX : e.clientX;
+  const cy = e.touches ? e.touches[0].clientY : e.clientY;
+  dragOffX = cx - boardRect.left - parseFloat(piece.style.left);
+  dragOffY = cy - boardRect.top  - parseFloat(piece.style.top);
+}
+
+document.addEventListener('mousemove', moveDrag);
+document.addEventListener('touchmove', moveDrag, { passive: false });
+document.addEventListener('mouseup', endDrag);
+document.addEventListener('touchend', endDrag);
+
+function moveDrag(e) {
+  if (!dragging) return;
+  e.preventDefault();
+  const boardRect = document.getElementById('board').getBoundingClientRect();
+  const cx = e.touches ? e.touches[0].clientX : e.clientX;
+  const cy = e.touches ? e.touches[0].clientY : e.clientY;
+  const pw = boardW / cols, ph = boardH / rows;
+  let x = cx - boardRect.left - dragOffX;
+  let y = cy - boardRect.top  - dragOffY;
+  x = Math.max(-pw*.4, Math.min(boardW - pw*.6, x));
+  y = Math.max(-ph*.4, Math.min(boardH - ph*.6, y));
+  dragging.style.left = x + 'px';
+  dragging.style.top  = y + 'px';
+
+  // Highlight near
+  const tx = parseFloat(dragging.dataset.tx), ty = parseFloat(dragging.dataset.ty);
+  const threshold = Math.min(boardW/cols, boardH/rows) * 0.45;
+  dragging.classList.toggle('near', Math.abs(x-tx) < threshold && Math.abs(y-ty) < threshold);
+}
+
+function endDrag() {
+  if (!dragging) return;
+  const x = parseFloat(dragging.style.left), y = parseFloat(dragging.style.top);
+  const tx = parseFloat(dragging.dataset.tx), ty = parseFloat(dragging.dataset.ty);
+  const threshold = Math.min(boardW/cols, boardH/rows) * 0.45;
+  dragging.classList.remove('near');
+  if (Math.abs(x-tx) < threshold && Math.abs(y-ty) < threshold) {
+    dragging.style.left = tx + 'px'; dragging.style.top = ty + 'px';
+    dragging.style.zIndex = 1;
+    dragging.classList.add('placed');
+    placedCount++;
+    document.getElementById('progressText').textContent = `${placedCount} / ${cols*rows}`;
+    if (placedCount === cols * rows) onComplete();
+  } else {
+    dragging.style.zIndex = 10;
+  }
+  dragging = null;
+}
+
+// ── Preview ───────────────────────────────────────────────────────────────────
+document.getElementById('previewBtn').addEventListener('click', () => {
+  document.getElementById('previewOverlay').classList.add('active');
+});
+document.getElementById('previewOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('previewOverlay'))
+    document.getElementById('previewOverlay').classList.remove('active');
+});
+
+// ── Complete ──────────────────────────────────────────────────────────────────
+async function onComplete() {
+  clearInterval(timerInterval);
+  const finalTime = timerSec;
+
+  document.getElementById('resultTime').textContent = fmtTime(finalTime);
+  document.getElementById('resultSub').textContent = `${selectedImg.name} · ${selectedDiff === 'easy' ? 'ง่าย' : selectedDiff === 'medium' ? 'ปานกลาง' : 'ยาก'}`;
+  document.getElementById('rankBadge').textContent = '';
+  document.getElementById('lbBody').innerHTML = '<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,.3);padding:16px">กำลังโหลด…</td></tr>';
+  show('completeScreen');
+
+  // Submit score
+  const token = getToken();
+  if (token) {
+    try {
+      await fetch('/api/jigsaw/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ image: selectedImg.file, difficulty: selectedDiff, time_sec: finalTime })
+      });
+    } catch {}
+  }
+
+  // Load leaderboard
+  try {
+    const r = await fetch(`/api/jigsaw/leaderboard?image=${selectedImg.file}&difficulty=${selectedDiff}`, {
+      headers: token ? { Authorization: 'Bearer ' + token } : {}
+    });
+    const { top10, me, myBest, myRank } = await r.json();
+
+    const tbody = document.getElementById('lbBody');
+    tbody.innerHTML = '';
+    top10.forEach((row, i) => {
+      const tr = document.createElement('tr');
+      if (i === 0) tr.className = 'top1';
+      else if (i === 1) tr.className = 'top2';
+      else if (i === 2) tr.className = 'top3';
+      if (row.username === me) tr.className += ' me';
+      tr.innerHTML = `<td>${i+1}</td><td>${row.username}</td><td>${fmtTime(row.best)}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    if (myRank !== null) {
+      document.getElementById('rankBadge').textContent =
+        myRank === 1 ? '🥇 อันดับ 1!' : myRank === 2 ? '🥈 อันดับ 2' : myRank === 3 ? '🥉 อันดับ 3' : `อันดับที่ ${myRank}`;
+
+      // If my row not in top10, append
+      if (myRank > 10) {
+        const tr = document.createElement('tr');
+        tr.className = 'me';
+        tr.innerHTML = `<td>${myRank}</td><td>${me}</td><td>${fmtTime(myBest)}</td>`;
+        const sep = document.createElement('tr');
+        sep.innerHTML = '<td colspan="3" style="text-align:center;color:rgba(255,255,255,.2);font-size:11px;padding:4px">·  ·  ·</td>';
+        tbody.appendChild(sep); tbody.appendChild(tr);
+      }
+    }
+  } catch { document.getElementById('lbBody').innerHTML = '<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,.3)">โหลดไม่ได้</td></tr>'; }
+}
+
+document.getElementById('playAgainBtn').addEventListener('click', startGame);
+document.getElementById('changeImgBtn').addEventListener('click', () => show('selectScreen'));
+</script>
+</body>
+</html>

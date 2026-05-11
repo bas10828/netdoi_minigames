@@ -719,6 +719,68 @@ io.on('connection', socket => {
   });
 });
 
+// ── Jigsaw table ──────────────────────────────────────────────────────────────
+pool.query(`
+  CREATE TABLE IF NOT EXISTS jigsaw_scores (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(20) NOT NULL,
+    image VARCHAR(50) NOT NULL,
+    difficulty VARCHAR(10) NOT NULL,
+    time_sec INTEGER NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`).catch(e => console.error('jigsaw table init:', e));
+
+// ── Jigsaw API ─────────────────────────────────────────────────────────────────
+app.post('/api/jigsaw/score', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    const { username } = jwt.verify(token, JWT_SECRET);
+    const { image, difficulty, time_sec } = req.body;
+    if (!image || !['easy','medium','hard'].includes(difficulty) || !Number.isInteger(time_sec) || time_sec < 1)
+      return res.status(400).json({ error: 'invalid' });
+    await pool.query(
+      'INSERT INTO jigsaw_scores (username,image,difficulty,time_sec) VALUES ($1,$2,$3,$4)',
+      [username, image, difficulty, time_sec]
+    );
+    res.json({ ok: true });
+  } catch { res.status(401).json({ error: 'unauthorized' }); }
+});
+
+app.get('/api/jigsaw/leaderboard', async (req, res) => {
+  const { image, difficulty } = req.query;
+  if (!image || !difficulty) return res.status(400).json({ error: 'invalid' });
+  const token = req.headers.authorization?.split(' ')[1];
+  let me = null;
+  if (token) { try { me = jwt.verify(token, JWT_SECRET).username; } catch {} }
+  try {
+    const { rows: top10 } = await pool.query(`
+      SELECT username, MIN(time_sec) AS best
+      FROM jigsaw_scores WHERE image=$1 AND difficulty=$2
+      GROUP BY username ORDER BY best ASC LIMIT 10
+    `, [image, difficulty]);
+    let myBest = null, myRank = null;
+    if (me) {
+      const { rows: mr } = await pool.query(
+        'SELECT MIN(time_sec) AS best FROM jigsaw_scores WHERE username=$1 AND image=$2 AND difficulty=$3',
+        [me, image, difficulty]
+      );
+      myBest = mr[0]?.best != null ? parseInt(mr[0].best) : null;
+      if (myBest !== null) {
+        const { rows: rr } = await pool.query(`
+          SELECT COUNT(*)+1 AS rank FROM (
+            SELECT username, MIN(time_sec) AS best FROM jigsaw_scores
+            WHERE image=$1 AND difficulty=$2 GROUP BY username HAVING MIN(time_sec)<$3
+          ) s
+        `, [image, difficulty, myBest]);
+        myRank = parseInt(rr[0].rank);
+      }
+    }
+    res.json({ top10: top10.map(r => ({ username: r.username, best: parseInt(r.best) })), me, myBest, myRank });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server error' }); }
+});
+
 const PORT = process.env.PORT || 3000;
 httpSv.listen(PORT, '0.0.0.0', () => {
   console.log(`🃏 Slave server → http://localhost:${PORT}`);
