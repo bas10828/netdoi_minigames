@@ -226,14 +226,16 @@ function startGame() {
   document.getElementById('timer').textContent = '0:00';
   show('gameScreen');
 
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+  const area = document.getElementById('boardArea');
+  const areaW = (area.clientWidth  || window.innerWidth)  - 8;
+  const areaH = (area.clientHeight || window.innerHeight - 58) - 8;
+
   const img = new Image();
   img.onload = () => {
     const aspect = img.naturalWidth / img.naturalHeight;
-    const area = document.getElementById('boardArea');
-    const maxW = area.clientWidth  - 8;
-    const maxH = area.clientHeight - 8;
-    if (maxW / aspect <= maxH) { bW = maxW; bH = Math.round(maxW / aspect); }
-    else { bH = maxH; bW = Math.round(maxH * aspect); }
+    if (areaW / aspect <= areaH) { bW = areaW; bH = Math.round(areaW / aspect); }
+    else { bH = areaH; bW = Math.round(areaH * aspect); }
     bW = Math.floor(bW / cols) * cols;
     bH = Math.floor(bH / rows) * rows;
 
@@ -258,6 +260,7 @@ function startGame() {
     timerInt = setInterval(() => { timerSec++; document.getElementById('timer').textContent = fmt(timerSec); }, 1000);
   };
   img.src = `./images/${selImg.file}`;
+  })); // end requestAnimationFrame
 }
 
 function isSolved(flat) {
