@@ -104,7 +104,8 @@
     .tag-rank   { background:rgba(255,215,0,.15); color:var(--gold); }
     .tag-finish { background:rgba(0,0,0,.5); color:rgba(255,255,255,.3); }
     .opp.opp-dc { opacity:.4; filter:grayscale(.6); }
-    .tag-dc { background:rgba(231,76,60,.25); color:#e74c3c; }
+    .tag-dc   { background:rgba(231,76,60,.25); color:#e74c3c; }
+    .tag-pass { background:rgba(255,255,255,.08); color:rgba(255,255,255,.35); }
     .back-mini.low { background:linear-gradient(135deg,#8b0000,#e74c3c); }
     @keyframes lowPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.06);} }
     .opp-backs.has-low { animation:lowPulse 1.1s ease-in-out infinite; }
@@ -564,6 +565,7 @@ function renderOpps(state) {
     if(p.disconnected&&p.cardCount>0) { tag.classList.add('tag-dc'); tag.textContent='⚠ หลุด'; }
     else if(p.cardCount===0) { tag.classList.add('tag-finish'); tag.textContent=p.rankLabel||'จบ'; }
     else if(p.isTurn) { tag.classList.add('tag-turn'); tag.textContent='▶ เทิร์น'; }
+    else if(p.hasPassed) { tag.classList.add('tag-pass'); tag.textContent='ผ่าน'; }
     else if(p.rankLabel) { tag.classList.add('tag-rank'); tag.textContent=p.rankLabel; }
     else { tag.classList.add('tag-count'); tag.textContent=p.cardCount+' ใบ'; }
     el.appendChild(tag);
@@ -573,7 +575,9 @@ function renderMyBar(state) {
   const me=state.players.find(p=>p.name===myName), el=document.getElementById('myLabel');
   let txt=myName; if(me?.rankLabel) txt+=' · '+me.rankLabel;
   el.className=state.myTurn?'my-label my-turn':'my-label';
-  el.textContent=state.myTurn?'▶ เทิร์นคุณ! · '+txt:txt;
+  if(state.myTurn) el.textContent='▶ เทิร์นคุณ! · '+txt;
+  else if(me?.hasPassed) el.textContent='ผ่านแล้ว · '+txt;
+  else el.textContent=txt;
 }
 function applyState(state) {
   lastState=state; selIdx=new Set();

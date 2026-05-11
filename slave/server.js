@@ -233,6 +233,7 @@ function broadcast(R) {
         rankLabel: pl.rankLabel,
         isActive: R.activeIds.has(pl.name),
         isTurn: currentPlayerName(R) === pl.name,
+        hasPassed: R.passedIds.has(pl.name),
       })),
       curPlay: R.curPlay, tableCards: R.tableCards, round1Ranks: R.round1Ranks,
     });
