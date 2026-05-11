@@ -205,7 +205,8 @@ function advanceTurn(R) {
   const n = R.turnOrder.length;
   let next = (R.turnIdx+1) % n;
   for (let i = 0; i < n; i++) {
-    if (R.activeIds.has(R.turnOrder[next])) break;
+    const name = R.turnOrder[next];
+    if (R.activeIds.has(name) && !R.passedIds.has(name)) break;
     next = (next+1) % n;
   }
   R.turnIdx = next;
@@ -380,14 +381,13 @@ function doPlay(R, playerName, cards) {
   if (isBomb) {
     R.curPlay    = null;
     R.passedIds  = new Set();
-    R.tableCards = [...cards]; // bomb resets table with only bomb cards
+    R.tableCards = [...cards];
     io.to(R.id).emit('bombCut', { playerName, type });
     if (!finished && R.activeIds.has(playerName)) setTurnTo(R, playerName);
     else advanceTurn(R);
   } else {
     R.curPlay    = { cards, type, playerId:playerName, playerName };
-    R.passedIds  = new Set();
-    R.tableCards = [...R.tableCards, ...cards]; // accumulate
+    R.tableCards = [...R.tableCards, ...cards];
     advanceTurn(R);
   }
   broadcast(R);
@@ -605,6 +605,7 @@ io.on('connection', socket => {
     const p = R.players.find(p => p.socketId === socket.id);
     if (!p || currentPlayerName(R) !== p.name) return;
     if (!Array.isArray(indices) || !indices.length) return;
+    if (R.passedIds.has(p.name)) return socket.emit('invalid','ผ่านไปแล้ว รอรอบหน้า');
     const hand = R.hands[p.name];
     if (!hand || indices.some(i=>i<0||i>=hand.length)) return socket.emit('invalid','ไม่ถูกต้อง');
     const cards = indices.map(i=>hand[i]);
