@@ -781,6 +781,34 @@ app.get('/api/jigsaw/leaderboard', async (req, res) => {
   } catch (e) { console.error(e); res.status(500).json({ error: 'server error' }); }
 });
 
+// ── Global stats ───────────────────────────────────────────────────────────────
+app.get('/api/stats/global', async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  let me = null;
+  if (token) { try { me = jwt.verify(token, JWT_SECRET).username; } catch {} }
+  try {
+    const { rows } = await pool.query(`
+      SELECT username,
+             COUNT(*) AS games_played,
+             MIN(time_sec) AS best_time,
+             ROUND(AVG(time_sec)) AS avg_time
+      FROM jigsaw_scores
+      GROUP BY username
+      ORDER BY games_played DESC, avg_time ASC
+      LIMIT 10
+    `);
+    res.json({
+      top10: rows.map(r => ({
+        username: r.username,
+        games_played: parseInt(r.games_played),
+        best_time: parseInt(r.best_time),
+        avg_time: parseInt(r.avg_time),
+      })),
+      me,
+    });
+  } catch (e) { console.error(e); res.status(500).json({ error: 'server error' }); }
+});
+
 const PORT = process.env.PORT || 3000;
 httpSv.listen(PORT, '0.0.0.0', () => {
   console.log(`🃏 Slave server → http://localhost:${PORT}`);
