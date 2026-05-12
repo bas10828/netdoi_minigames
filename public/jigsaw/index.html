@@ -46,8 +46,13 @@
 
     /* game */
     #gameScreen { padding: 0; justify-content: flex-start; overflow: hidden; }
-    .topbar { width: 100%; height: 50px; background: rgba(0,0,0,.65); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: flex-end; padding: 0 12px; flex-shrink: 0; padding-top: env(safe-area-inset-top); }
+    .topbar { width: 100%; height: 50px; background: rgba(0,0,0,.65); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; padding: 0 12px; flex-shrink: 0; padding-top: env(safe-area-inset-top); }
+    .topbar-left { display: flex; align-items: center; gap: 8px; }
+    .topbar-title { font-size: 12px; font-weight: 900; letter-spacing: 2px; color: var(--gold); }
     .topbar-right { display: flex; align-items: center; gap: 6px; }
+    .home-btn.hidden { display: none; }
+    .page-row { display: flex; align-items: center; gap: 12px; }
+    .page-label { font-size: 12px; color: rgba(255,255,255,.45); min-width: 50px; text-align: center; }
     .timer-bar { position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); left: 12px; display: flex; align-items: baseline; gap: 8px; background: rgba(0,0,0,.65); backdrop-filter: blur(10px); padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,215,0,.2); z-index: 100; }
     .timer { font-size: 20px; font-weight: 900; color: var(--gold); letter-spacing: 1px; }
     .prog { font-size: 12px; color: rgba(255,255,255,.45); }
@@ -80,7 +85,7 @@
     .res-score { font-size: 22px; font-weight: 900; color: #00e676; letter-spacing: 1px; }
     .res-sub { font-size: 13px; color: rgba(255,255,255,.45); }
     .rank-badge { font-size: 26px; font-weight: 900; }
-    .lb-wrap { width: 100%; max-width: 360px; overflow-y: auto; max-height: 240px; }
+    .lb-wrap { width: 100%; max-width: 360px; }
     table { width: 100%; border-collapse: collapse; }
     th { font-size: 11px; color: rgba(255,255,255,.4); letter-spacing: 1px; padding: 7px 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.1); }
     td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
@@ -117,19 +122,12 @@
   <div class="title">🧩 จิกซอ</div>
   <div class="subtitle">เลือกภาพที่ต้องการต่อ</div>
   <div class="img-grid" id="imgGrid"></div>
-  <button class="btn btn-gold" id="selNext" disabled>เลือกความยาก →</button>
-  <button class="stats-btn" id="statsBtn">🏆 อันดับรวม</button>
-</div>
-
-<div class="modal-overlay" id="statsModal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div class="modal-title">🏆 อันดับรวม จิกซอ</div>
-      <button class="modal-close" id="modalClose">✕</button>
-    </div>
-    <div style="font-size:11px;color:rgba(255,255,255,.35);letter-spacing:1px">จำนวนด่านที่ผ่าน · เวลาเฉลี่ย · เวลาดีสุด</div>
-    <div id="statsContent"><p style="text-align:center;color:rgba(255,255,255,.35);padding:20px">กำลังโหลด…</p></div>
+  <div class="page-row" id="pageRow" style="display:none">
+    <button class="icon-btn" id="pagePrev">←</button>
+    <span class="page-label" id="pageLabel"></span>
+    <button class="icon-btn" id="pageNext">→</button>
   </div>
+  <button class="stats-btn" id="statsBtn">🏆 อันดับรวม</button>
 </div>
 
 <!-- Difficulty -->
@@ -143,15 +141,28 @@
     <div class="diff-card" data-d="medium"><div class="diff-label">ปานกลาง</div>  <div class="diff-sub">4×4 · 16 ชิ้น</div> </div>
     <div class="diff-card" data-d="hard">  <div class="diff-label">ยาก</div>       <div class="diff-sub">6×6 · 36 ชิ้น</div> </div>
   </div>
-  <div class="btn-row">
-    <button class="btn btn-gray" id="diffBack">← กลับ</button>
-    <button class="btn btn-gold" id="diffStart" disabled>เริ่มเลย!</button>
+  <button class="btn btn-gray" id="diffBack">← กลับ</button>
+</div>
+
+<div class="modal-overlay" id="statsModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">🏆 อันดับรวม จิกซอ</div>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,.35);letter-spacing:1px">จำนวนด่านที่ผ่าน · เวลาเฉลี่ย · เวลาดีสุด</div>
+    <div id="statsContent"><p style="text-align:center;color:rgba(255,255,255,.35);padding:20px">กำลังโหลด…</p></div>
   </div>
 </div>
+
 
 <!-- Game -->
 <div id="gameScreen" class="screen">
   <div class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" id="exitBtn">← ออก</button>
+      <span class="topbar-title">NETDOI-JIGSAW</span>
+    </div>
     <div class="topbar-right">
       <button class="icon-btn" id="prevBtn">👁</button>
       <button class="icon-btn" id="fsBtn">⛶</button>
@@ -167,30 +178,29 @@
 <!-- Complete -->
 <div id="doneScreen" class="screen">
   <div class="title">🎉 สำเร็จ!</div>
+  <img id="doneImg" src="" alt="" style="width:min(80vw,360px);height:min(50vw,225px);object-fit:cover;border-radius:14px;border:2px solid rgba(255,215,0,.5);box-shadow:0 0 32px rgba(255,215,0,.2)">
   <div class="res-time" id="resTime"></div>
   <div class="res-score" id="resScore"></div>
   <div class="res-sub"  id="resSub"></div>
   <div class="rank-badge" id="rankBadge"></div>
   <div style="font-size:11px;color:rgba(255,255,255,.35);letter-spacing:2px">TOP 10</div>
   <div class="lb-wrap"><table><thead><tr><th>#</th><th>ชื่อ</th><th>คะแนน</th><th>เวลาดีสุด</th></tr></thead><tbody id="lbBody"></tbody></table></div>
-  <div class="btn-row">
-    <button class="btn btn-gold" id="replayBtn">เล่นอีกครั้ง</button>
-    <button class="btn btn-gray" id="changeBtn">เปลี่ยนภาพ</button>
+  <div class="diff-wrap" id="replayDiff">
+    <div class="diff-card" data-d="easy">  <div class="diff-label">ง่าย</div>      <div class="diff-sub">3×3 · 9 ชิ้น</div>  </div>
+    <div class="diff-card" data-d="medium"><div class="diff-label">ปานกลาง</div>  <div class="diff-sub">4×4 · 16 ชิ้น</div> </div>
+    <div class="diff-card" data-d="hard">  <div class="diff-label">ยาก</div>       <div class="diff-sub">6×6 · 36 ชิ้น</div> </div>
   </div>
+  <button class="btn btn-gray" id="changeBtn">เลือกภาพอื่น</button>
 </div>
 
 <script>
 const TOKEN_KEY = 'netdoiToken';
-const IMAGES = [
-  { file:'6432.jpg', name:'Hikvision ColorVu' },
-  { file:'6433.jpg', name:'Hikvision AcuSense' },
-  { file:'6434.jpg', name:'Dahua Monitor' },
-  { file:'6435.jpg', name:'EZVIZ Solar' },
-  { file:'6436.jpg', name:'EZVIZ Smart Home' },
-];
+let IMAGES = [];
 const DIFFS = { easy:{cols:3,rows:3}, medium:{cols:4,rows:4}, hard:{cols:6,rows:6} };
 
 let selImg = null, selDiff = null;
+let page = 0;
+const PAGE_SIZE = 12;
 let grid = [], cols = 0, rows = 0, bW = 0, bH = 0;
 let placedOk = 0, timerSec = 0, timerInt = null;
 let myUser = null;
@@ -199,10 +209,13 @@ let clearedSet = new Set();
 
 function tok() { return localStorage.getItem(TOKEN_KEY); }
 function fmt(s) { return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
-function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); }
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+  document.querySelector('.home-btn').classList.toggle('hidden', id === 'gameScreen');
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   const token = tok();
   if (!token) { window.location.href = '/'; return; }
   try {
@@ -210,6 +223,10 @@ window.addEventListener('load', () => {
     if (p.exp * 1000 <= Date.now()) { localStorage.removeItem(TOKEN_KEY); window.location.href = '/'; return; }
     myUser = p.username;
   } catch { window.location.href = '/'; return; }
+  try {
+    const r = await fetch('/api/jigsaw/images');
+    IMAGES = await r.json();
+  } catch { IMAGES = []; }
   buildImgGrid();
   fetch('/api/jigsaw/progress', { headers: { Authorization: 'Bearer ' + tok() } })
     .then(r => r.json()).then(d => {
@@ -222,7 +239,14 @@ window.addEventListener('load', () => {
 // ── Image select ──────────────────────────────────────────────────────────────
 function buildImgGrid() {
   const g = document.getElementById('imgGrid');
-  IMAGES.forEach(img => {
+  g.innerHTML = '';
+  selImg = null;
+
+  const totalPages = Math.max(1, Math.ceil(IMAGES.length / PAGE_SIZE));
+  page = Math.min(page, totalPages - 1);
+  const slice = IMAGES.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  slice.forEach(img => {
     const c = document.createElement('div');
     c.className = 'img-card';
     c.dataset.file = img.file;
@@ -235,13 +259,25 @@ function buildImgGrid() {
         <span class="star" data-file="${img.file}" data-diff="hard"  title="ยาก">★</span>
       </div>`;
     c.addEventListener('click', () => {
-      g.querySelectorAll('.img-card').forEach(x => x.classList.remove('selected'));
-      c.classList.add('selected');
       selImg = img;
-      document.getElementById('selNext').disabled = false;
+      document.getElementById('diffPrev').src = `./images/${img.file}`;
+      document.querySelectorAll('.diff-card').forEach(x => x.classList.remove('sel'));
+      selDiff = null;
+      show('diffScreen');
     });
     g.appendChild(c);
   });
+
+  const pageRow = document.getElementById('pageRow');
+  if (totalPages > 1) {
+    pageRow.style.display = 'flex';
+    document.getElementById('pageLabel').textContent = `${page + 1} / ${totalPages}`;
+    document.getElementById('pagePrev').disabled = page === 0;
+    document.getElementById('pageNext').disabled = page === totalPages - 1;
+  } else {
+    pageRow.style.display = 'none';
+  }
+  updateAllStars();
 }
 
 function updateAllStars() {
@@ -250,14 +286,8 @@ function updateAllStars() {
     s.classList.toggle('cleared', clearedSet.has(key));
   });
 }
-document.getElementById('selNext').addEventListener('click', () => {
-  if (!selImg) return;
-  document.getElementById('diffPrev').src = `./images/${selImg.file}`;
-  document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('sel'));
-  selDiff = null;
-  document.getElementById('diffStart').disabled = true;
-  show('diffScreen');
-});
+document.getElementById('pagePrev').addEventListener('click', () => { page--; buildImgGrid(); });
+document.getElementById('pageNext').addEventListener('click', () => { page++; buildImgGrid(); });
 
 // ── Diff select ───────────────────────────────────────────────────────────────
 document.querySelectorAll('.diff-card').forEach(c => {
@@ -265,11 +295,10 @@ document.querySelectorAll('.diff-card').forEach(c => {
     document.querySelectorAll('.diff-card').forEach(x => x.classList.remove('sel'));
     c.classList.add('sel');
     selDiff = c.dataset.d;
-    document.getElementById('diffStart').disabled = false;
+    startGame();
   });
 });
 document.getElementById('diffBack').addEventListener('click', () => show('selScreen'));
-document.getElementById('diffStart').addEventListener('click', startGame);
 
 // ── Start game ────────────────────────────────────────────────────────────────
 function startGame() {
@@ -438,6 +467,12 @@ function onPointerUp(e) {
   dragSrc = null; overCell = null;
 }
 
+// ── Exit game ─────────────────────────────────────────────────────────────────
+document.getElementById('exitBtn').addEventListener('click', () => {
+  clearInterval(timerInt);
+  show('selScreen');
+});
+
 // ── Preview ───────────────────────────────────────────────────────────────────
 document.getElementById('prevBtn').addEventListener('click', () => document.getElementById('prevOv').classList.add('on'));
 
@@ -459,6 +494,7 @@ function updateFsBtn() {
 // ── Complete ──────────────────────────────────────────────────────────────────
 async function onComplete() {
   const t = timerSec;
+  document.getElementById('doneImg').src = `./images/${selImg.file}`;
   document.getElementById('resTime').textContent  = fmt(t);
   document.getElementById('resScore').textContent = '';
   document.getElementById('resSub').textContent   = `${selImg.name} · ${{ easy:'ง่าย', medium:'ปานกลาง', hard:'ยาก' }[selDiff]}`;
@@ -491,29 +527,39 @@ async function onComplete() {
     const { top10, me, myBest, myRank } = await res.json();
     const tb = document.getElementById('lbBody');
     tb.innerHTML = '';
-    top10.forEach((row, i) => {
+    // top 3 rows
+    for (let i = 0; i < 3; i++) {
+      const row = top10[i];
       const tr = document.createElement('tr');
-      tr.className = ['r1','r2','r3'][i] || '';
-      if (row.username === me) tr.className += ' me';
-      tr.innerHTML = `<td>${i+1}</td><td>${row.username}</td><td>${row.best_score.toLocaleString()}</td><td>${fmt(row.best_time)}</td>`;
+      tr.className = ['r1','r2','r3'][i];
+      if (row && row.username === me) tr.className += ' me';
+      tr.innerHTML = row
+        ? `<td>${i+1}</td><td>${row.username}</td><td>${row.best_score.toLocaleString()}</td><td>${fmt(row.best_time)}</td>`
+        : `<td>${i+1}</td><td colspan="3" style="color:rgba(255,255,255,.2)">—</td>`;
       tb.appendChild(tr);
-    });
+    }
+    // my rank row
+    const myRow = document.createElement('tr');
+    myRow.className = 'me';
+    if (myRank !== null && myBest !== null) {
+      myRow.innerHTML = `<td>${myRank}</td><td>${me}</td><td>${myBest.toLocaleString()}</td><td>–</td>`;
+    } else {
+      myRow.innerHTML = `<td>–</td><td colspan="3" style="color:rgba(255,255,255,.2)">ฉัน</td>`;
+    }
+    tb.appendChild(myRow);
     if (myRank !== null) {
       document.getElementById('rankBadge').textContent =
         myRank === 1 ? '🥇 อันดับ 1!' : myRank === 2 ? '🥈 อันดับ 2' : myRank === 3 ? '🥉 อันดับ 3' : `อันดับที่ ${myRank}`;
-      if (myRank > 10) {
-        const sep = document.createElement('tr');
-        sep.innerHTML = '<td colspan="4" style="text-align:center;color:rgba(255,255,255,.2);font-size:10px;padding:3px">· · ·</td>';
-        const tr = document.createElement('tr');
-        tr.className = 'me';
-        tr.innerHTML = `<td>${myRank}</td><td>${me}</td><td>${myBest.toLocaleString()}</td><td>–</td>`;
-        tb.appendChild(sep); tb.appendChild(tr);
-      }
     }
   } catch { document.getElementById('lbBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:rgba(255,255,255,.3)">โหลดไม่ได้</td></tr>'; }
 }
 
-document.getElementById('replayBtn').addEventListener('click', startGame);
+document.querySelectorAll('#replayDiff .diff-card').forEach(c => {
+  c.addEventListener('click', () => {
+    selDiff = c.dataset.d;
+    startGame();
+  });
+});
 document.getElementById('changeBtn').addEventListener('click', () => show('selScreen'));
 
 document.getElementById('statsBtn').addEventListener('click', async () => {

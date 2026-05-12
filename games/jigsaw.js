@@ -1,4 +1,14 @@
 const jwt = require('jsonwebtoken');
+const fs   = require('fs');
+const path = require('path');
+
+const IMAGES_DIR = path.join(__dirname, '../public/jigsaw/images');
+const IMG_EXT = /\.(jpe?g|png|webp)$/i;
+
+function fileToName(filename) {
+  return filename.replace(IMG_EXT, '').replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
 
 const DIFF_BASE = { easy: 500, medium: 1000, hard: 2000 };
 function calcScore(difficulty, time_sec) {
@@ -19,6 +29,13 @@ module.exports = function(app, pool, JWT_SECRET) {
   `).then(() =>
     pool.query(`ALTER TABLE jigsaw_scores ADD COLUMN IF NOT EXISTS score INTEGER NOT NULL DEFAULT 0`)
   ).catch(e => console.error('jigsaw table init:', e));
+
+  app.get('/api/jigsaw/images', (_req, res) => {
+    try {
+      const files = fs.readdirSync(IMAGES_DIR).filter(f => IMG_EXT.test(f)).sort();
+      res.json(files.map(file => ({ file, name: fileToName(file) })));
+    } catch (e) { console.error(e); res.status(500).json({ error: 'cannot read images' }); }
+  });
 
   app.post('/api/jigsaw/score', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
