@@ -4,9 +4,10 @@ const SUIT_SYM        = ['♣','♦','♥','♠'];
 const RANK_DISP       = { 11:'J', 12:'Q', 13:'K', 14:'A', 15:'2' };
 const RANK_NAMES      = ['คิง 👑','ควีน 👸','สามัญชน 🧑','สเลฟ 😵'];
 const BOT_NAMES       = ['VOID 🖤','REAPER ☠️','APEX ⚡'];
-const BOT_THINK       = 3000;
+const BOT_THINK       = 1500;
 const AUTO_PASS_DELAY = 30000;
 const BOT_TAKEOVER_MS = Math.round(AUTO_PASS_DELAY * 0.75);
+const TURN_AUTO_SEC   = 10;
 
 function makeCard(rank, si) {
   return { rank, suitIndex: si, display: (RANK_DISP[rank] || rank) + SUIT_SYM[si] };
@@ -37,12 +38,13 @@ function getType(cards) {
 function canBeat(newCards, curPlay) {
   const t = getType(newCards);
   if (!t) return false;
-  if (!curPlay) return t === 'single' || t === 'pair';
-  const ct = curPlay.type;
-  if (t === 'triple' && ct === 'single') return true;
-  if (t === 'quad'   && ct === 'pair')   return true;
-  if (t !== ct) return false;
-  return maxVal(newCards) > maxVal(curPlay.cards);
+  if (!curPlay) return true;
+  const ct = curPlay.type, mv = maxVal(curPlay.cards);
+  if (ct === 'single') return (t === 'single' && maxVal(newCards) > mv) || t === 'triple';
+  if (ct === 'pair')   return (t === 'pair'   && maxVal(newCards) > mv) || t === 'quad';
+  if (ct === 'triple') return t === 'triple' && maxVal(newCards) > mv;
+  if (ct === 'quad')   return t === 'quad'   && maxVal(newCards) > mv;
+  return false;
 }
 
 function groupByRank(hand) {
@@ -57,22 +59,46 @@ function findBotCards(hand, curPlay) {
   }
   const ct = curPlay.type, mv = maxVal(curPlay.cards);
   if (ct === 'single') {
-    const cands = hand.map((c,i)=>({v:cardVal(c),i})).filter(x=>x.v>mv).sort((a,b)=>a.v-b.v);
-    if (cands.length) return [cands[0].i];
-    const triples = Object.values(groupByRank(hand)).filter(a=>a.length>=3);
-    if (triples.length) return triples.sort((a,b)=>hand[a[0]].rank-hand[b[0]].rank)[0].slice(0,3);
-    return null;
+    // higher single or lowest triple
+    const singles = hand.map((c,i)=>i).filter(i=>cardVal(hand[i])>mv).sort((a,b)=>cardVal(hand[a])-cardVal(hand[b]));
+    if (singles.length) return [singles[0]];
+    const triples = Object.values(groupByRank(hand))
+      .filter(a=>a.length>=3)
+      .map(a=>[...a].sort((x,y)=>hand[y].suitIndex-hand[x].suitIndex).slice(0,3))
+      .sort((a,b)=>hand[a[0]].rank-hand[b[0]].rank);
+    return triples.length ? triples[0] : null;
   }
   if (ct === 'pair') {
+    // higher pair or lowest quad
     const pairs = Object.values(groupByRank(hand))
       .filter(a=>a.length>=2)
-      .map(a=>[...a].sort((x,y)=>hand[y].suitIndex-hand[x].suitIndex).slice(0,2))
+      .map(a=>a.slice(0,2))
       .filter(p=>maxVal(p.map(i=>hand[i]))>mv)
       .sort((a,b)=>maxVal(a.map(i=>hand[i]))-maxVal(b.map(i=>hand[i])));
     if (pairs.length) return pairs[0];
-    const quads = Object.values(groupByRank(hand)).filter(a=>a.length>=4);
-    if (quads.length) return quads[0].slice(0,4);
-    return null;
+    const quads = Object.values(groupByRank(hand))
+      .filter(a=>a.length>=4)
+      .map(a=>a.slice(0,4))
+      .sort((a,b)=>hand[a[0]].rank-hand[b[0]].rank);
+    return quads.length ? quads[0] : null;
+  }
+  if (ct === 'triple') {
+    // higher triple only
+    const triples = Object.values(groupByRank(hand))
+      .filter(a=>a.length>=3)
+      .map(a=>[...a].sort((x,y)=>hand[y].suitIndex-hand[x].suitIndex).slice(0,3))
+      .filter(t=>maxVal(t.map(i=>hand[i]))>mv)
+      .sort((a,b)=>maxVal(a.map(i=>hand[i]))-maxVal(b.map(i=>hand[i])));
+    return triples.length ? triples[0] : null;
+  }
+  if (ct === 'quad') {
+    // higher quad only
+    const quads = Object.values(groupByRank(hand))
+      .filter(a=>a.length>=4)
+      .map(a=>a.slice(0,4))
+      .filter(q=>maxVal(q.map(i=>hand[i]))>mv)
+      .sort((a,b)=>maxVal(a.map(i=>hand[i]))-maxVal(b.map(i=>hand[i])));
+    return quads.length ? quads[0] : null;
   }
   return null;
 }
@@ -95,6 +121,8 @@ function initRoom(id) {
     curPlay: null, passedIds: new Set(),
     finishOrder: [], round1Ranks: null,
     autoPassTimers: {},
+    turnAutoTimer: null,
+    turnAutoTimerFor: null,
     tableCards: [],
     swapPending: new Set(),
     swapGiving:  {},
@@ -114,6 +142,7 @@ function dealCards(R) {
   R.players.forEach((p, i) => { R.hands[p.name] = sortHand(deck.filter((_,j) => j % 4 === i)); });
 }
 function resetForRound(R) {
+  clearTurnTimer(R);
   dealCards(R);
   R.activeIds   = new Set(R.turnOrder);
   R.curPlay     = null;
@@ -161,8 +190,11 @@ function broadcast(io, R) {
         hasPassed: R.passedIds.has(pl.name),
       })),
       curPlay: R.curPlay, tableCards: R.tableCards, round1Ranks: R.round1Ranks,
+      slaveHand: R.phase === 'roundEnd' ? (R.hands[R.round1Ranks?.[3]?.name] || []) : [],
+      slaveName: R.phase === 'roundEnd' ? R.round1Ranks?.[3]?.name : null,
     });
   });
+  scheduleTurnTimer(io, R);
 }
 function emitLobby(io, R) {
   io.to(R.id).emit('lobby', {
@@ -233,7 +265,10 @@ function executeSwap(io, R) {
   R.activeIds   = new Set(R.turnOrder);
   R.curPlay     = null; R.passedIds = new Set();
   R.finishOrder = []; R.coupedPlayer = null;
-  R.players.forEach(p => { p.rankLabel = null; });
+  R.players.forEach(p => {
+    const r1 = R.round1Ranks?.find(r => r.name === p.name);
+    p.rankLabel = r1?.rankLabel || null;
+  });
   if (slaveEntry && R.activeIds.has(slaveEntry.name)) setTurnTo(R, slaveEntry.name);
   R.phase = 'playing';
   io.to(R.id).emit('gameStart', { round: 2, roomId: R.id });
@@ -243,8 +278,7 @@ function executeSwap(io, R) {
 
 function doPlay(io, R, playerName, cards) {
   if (!canBeat(cards, R.curPlay)) return { ok:false, msg:'ไพ่ตีไม่ได้' };
-  const type   = getType(cards);
-  const isBomb = (type==='triple'&&R.curPlay?.type==='single')||(type==='quad'&&R.curPlay?.type==='pair');
+  const type = getType(cards);
   R.hands[playerName] = R.hands[playerName].filter(c => !cards.includes(c));
   const finished = R.hands[playerName].length === 0;
   if (finished) {
@@ -258,34 +292,38 @@ function doPlay(io, R, playerName, cards) {
         io.to(R.id).emit('coup', { usurper: playerName, deposed: r1King.name });
       }
     }
+    if (R.round === 1) {
+      io.to(R.id).emit('playerFinished', { name: playerName, rankLabel: RANK_NAMES[R.finishOrder.length - 1] });
+    }
     R.activeIds.delete(playerName);
     if (R.activeIds.size <= 1) {
-      if (R.activeIds.size === 1) R.finishOrder.push([...R.activeIds][0]);
+      if (R.activeIds.size === 1) {
+        const slaveName = [...R.activeIds][0];
+        R.finishOrder.push(slaveName);
+        if (R.round === 1) {
+          io.to(R.id).emit('playerFinished', { name: slaveName, rankLabel: RANK_NAMES[3] });
+        }
+      }
       R.activeIds.clear();
       endRound(io, R);
       return { ok:true, ended:true };
     }
   }
-  if (isBomb) {
-    R.curPlay = null; R.passedIds = new Set(); R.tableCards = [...cards];
-    io.to(R.id).emit('bombCut', { playerName, type });
-    if (!finished && R.activeIds.has(playerName)) setTurnTo(R, playerName);
-    else advanceTurn(R);
-  } else {
-    R.curPlay    = { cards, type, playerId:playerName, playerName };
-    R.tableCards = [...R.tableCards, ...cards];
-    advanceTurn(R);
-  }
+  R.curPlay    = { cards, type, playerId:playerName, playerName };
+  R.tableCards = [...R.tableCards, ...cards];
+  advanceTurn(R);
   broadcast(io, R);
   return { ok:true };
 }
 function doPass(io, R, playerName) {
   if (!R.curPlay) return { ok:false, msg:'โต๊ะว่าง ต้องเล่นก่อน' };
   R.passedIds.add(playerName);
-  if (allOthersPassed(R)) {
+  const canStillPlay = [...R.activeIds].filter(n => !R.passedIds.has(n));
+  if (canStillPlay.length <= 1) {
     const last = R.curPlay.playerId;
     R.curPlay = null; R.passedIds = new Set(); R.tableCards = [];
     if (R.activeIds.has(last)) setTurnTo(R, last);
+    else if (canStillPlay.length === 1) setTurnTo(R, canStillPlay[0]);
     else advanceTurn(R);
   } else {
     advanceTurn(R);
@@ -300,13 +338,16 @@ function assignRanks(R) {
   });
 }
 function endRound(io, R) {
+  clearTurnTimer(R);
   if (R.coupedPlayer && !R.finishOrder.includes(R.coupedPlayer)) R.finishOrder.push(R.coupedPlayer);
   assignRanks(R);
   if (R.round === 1) {
     R.round1Ranks = R.finishOrder.map((name, i) => ({ name, rankLabel: RANK_NAMES[i] }));
     R.phase = 'roundEnd';
     broadcast(io, R);
-    io.to(R.id).emit('roundEnd', R.round1Ranks);
+    const slaveEntry = R.round1Ranks[3];
+    const slaveHand  = slaveEntry ? (R.hands[slaveEntry.name] || []) : [];
+    setTimeout(() => io.to(R.id).emit('roundEnd', { ranks: R.round1Ranks, slaveHand, slaveName: slaveEntry?.name }), 5000);
   } else {
     R.phase = 'gameOver';
     const r2 = R.finishOrder.map((name, i) => ({ name, rankLabel: RANK_NAMES[i] }));
@@ -328,6 +369,22 @@ function scheduleAutoPass(io, R, name) {
       if (currentPlayerName(R) === name) scheduleAutoPass(io, R, name);
     }
   }, BOT_TAKEOVER_MS);
+}
+function clearTurnTimer(R) { clearTimeout(R.turnAutoTimer); R.turnAutoTimer = null; R.turnAutoTimerFor = null; }
+function scheduleTurnTimer(io, R) {
+  if (R.phase !== 'playing') return;
+  const name = currentPlayerName(R);
+  if (R.turnAutoTimerFor === name && R.turnAutoTimer) return;
+  clearTurnTimer(R);
+  const p = R.players.find(p => p.name === name);
+  if (!p || p.isBot) return;
+  R.turnAutoTimerFor = name;
+  R.turnAutoTimer = setTimeout(() => {
+    R.turnAutoTimer = null; R.turnAutoTimerFor = null;
+    if (R.phase !== 'playing' || currentPlayerName(R) !== name) return;
+    runBot(io, R, name, false);
+    if (!['roundEnd','gameOver'].includes(R.phase)) scheduleBots(io, R);
+  }, TURN_AUTO_SEC * 1000);
 }
 function scheduleBots(io, R) {
   if (R.phase !== 'playing') return;
@@ -411,6 +468,14 @@ module.exports = function(app, io, JWT_SECRET) {
         else {
           socket.emit('rejoined', { roomId: R.id });
           broadcast(io, R);
+          if (R.phase === 'roundEnd' && R.round1Ranks) {
+            const se = R.round1Ranks[3];
+            socket.emit('roundEnd', { ranks: R.round1Ranks, slaveHand: se ? (R.hands[se.name]||[]) : [], slaveName: se?.name });
+          }
+          else if (R.phase === 'gameOver') {
+            const r2 = R.finishOrder.map((n, i) => ({ name: n, rankLabel: RANK_NAMES[i] }));
+            socket.emit('gameOver', { r1: R.round1Ranks, r2 });
+          }
           if (wasDisconnected) io.to(R.id).emit('playerRejoined', { name });
         }
         return;
@@ -449,7 +514,7 @@ module.exports = function(app, io, JWT_SECRET) {
       R.players = R.players.filter(p => p.name !== name);
       socket.leave(R.id); socket.data.roomId = null;
       if (R.players.filter(p=>!p.isBot).length === 0) {
-        Object.values(R.autoPassTimers).forEach(clearTimeout);
+        clearTurnTimer(R); Object.values(R.autoPassTimers).forEach(clearTimeout);
         rooms.delete(R.id);
       } else { emitLobby(io, R); }
       broadcastRoomList(io); socket.emit('leftRoom');
@@ -523,19 +588,29 @@ module.exports = function(app, io, JWT_SECRET) {
     socket.on('requestState', () => {
       const R = getRoom(socket);
       if (!R) return;
-      if (['playing','roundEnd','gameOver'].includes(R.phase)) broadcast(io, R);
-      else if (R.phase === 'lobby') emitLobby(io, R);
+      if (R.phase === 'playing') broadcast(io, R);
+      else if (R.phase === 'roundEnd') {
+        broadcast(io, R);
+        if (R.round1Ranks) {
+          const se = R.round1Ranks[3];
+          socket.emit('roundEnd', { ranks: R.round1Ranks, slaveHand: se ? (R.hands[se.name]||[]) : [], slaveName: se?.name });
+        }
+      } else if (R.phase === 'gameOver') {
+        broadcast(io, R);
+        const r2 = R.finishOrder.map((n, i) => ({ name: n, rankLabel: RANK_NAMES[i] }));
+        socket.emit('gameOver', { r1: R.round1Ranks, r2 });
+      } else if (R.phase === 'lobby') emitLobby(io, R);
       else if (R.phase === 'cardSwap') broadcastSwap(io, R);
     });
 
     socket.on('newGame', () => {
       const R = getRoom(socket);
       if (!R || R.phase !== 'gameOver') return;
-      Object.values(R.autoPassTimers).forEach(clearTimeout);
+      clearTurnTimer(R); Object.values(R.autoPassTimers).forEach(clearTimeout);
       R.phase='lobby'; R.round=0; R.hands={};
       R.turnOrder=[]; R.turnIdx=0; R.activeIds=new Set();
       R.curPlay=null; R.passedIds=new Set();
-      R.finishOrder=[]; R.round1Ranks=null; R.autoPassTimers={};
+      R.finishOrder=[]; R.round1Ranks=null; R.autoPassTimers={}; R.turnAutoTimerFor=null;
       R.tableCards=[]; R.swapPending=new Set(); R.swapGiving={}; R.coupedPlayer=null;
       R.players = R.players.filter(p => !p.isBot);
       R.players.forEach(p => { p.rankLabel=null; });
@@ -550,7 +625,7 @@ module.exports = function(app, io, JWT_SECRET) {
       if (R.phase === 'lobby') {
         R.players = R.players.filter(p => p.socketId !== socket.id);
         if (R.players.filter(p=>!p.isBot).length === 0) {
-          Object.values(R.autoPassTimers).forEach(clearTimeout);
+          clearTurnTimer(R); Object.values(R.autoPassTimers).forEach(clearTimeout);
           rooms.delete(R.id);
         } else { emitLobby(io, R); }
         broadcastRoomList(io);

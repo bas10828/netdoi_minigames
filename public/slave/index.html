@@ -152,6 +152,8 @@
     .action-row { display:flex; gap:10px; }
     #timerBar { position:fixed; top:0; left:0; right:0; height:3px; background:rgba(255,255,255,.08); z-index:600; display:none; }
     #timerFill { height:100%; width:100%; background:var(--gold); transition:width 1s linear,background .4s; }
+    #timerNum { font-size:13px; font-weight:900; color:rgba(255,255,255,.45); letter-spacing:1px; display:none; transition:color .4s; }
+    #timerNum.urgent { color:var(--red); }
     #timerFill.urgent { background:var(--red); }
     #toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); background:rgba(231,76,60,.92); color:#fff; padding:8px 20px; border-radius:20px; font-size:13px; font-weight:600; z-index:999; display:none; white-space:nowrap; }
     #bombToast { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,.9); color:var(--gold); font-size:clamp(16px,4.5vw,24px); font-weight:900; padding:16px 32px; border-radius:16px; z-index:998; display:none; text-align:center; border:2px solid var(--gold); white-space:pre-line; }
@@ -163,6 +165,18 @@
     .home-btn:hover { border-color:var(--gold); background:rgba(0,0,0,.55); }
     .lobby-back-btn { position:fixed; top:10px; right:12px; font-size:11px; color:rgba(255,255,255,.4); background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.12); padding:5px 12px; border-radius:20px; cursor:pointer; z-index:200; font-family:inherit; display:none; }
     .lobby-back-btn:hover { color:rgba(255,255,255,.75); }
+
+    /* ── RANK REVEAL ── */
+    #rankReveal { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; z-index:1001; pointer-events:none; opacity:0; transition:opacity .25s; }
+    #rankReveal.show { opacity:1; }
+    #rankRevealInner { background:rgba(0,0,0,.9); border-radius:22px; padding:28px 48px; text-align:center; transform:scale(.4); transition:transform .4s cubic-bezier(.34,1.56,.64,1); border:2px solid rgba(255,255,255,.15); display:flex; flex-direction:column; align-items:center; gap:6px; }
+    #rankReveal.show #rankRevealInner { transform:scale(1); }
+    #rankRevealEmoji { font-size:58px; line-height:1; }
+    #rankRevealName  { font-size:15px; font-weight:700; color:rgba(255,255,255,.55); }
+    #rankRevealLabel { font-size:clamp(20px,5vw,28px); font-weight:900; }
+    #rankRevealSub   { font-size:13px; color:rgba(255,255,255,.45); }
+    @keyframes rankShake { 0%,100%{transform:scale(1) rotate(0)} 20%{transform:scale(1.05) rotate(-2deg)} 40%{transform:scale(1.05) rotate(2deg)} 60%{transform:scale(1.05) rotate(-1deg)} 80%{transform:scale(1.05) rotate(1deg)} }
+    #rankReveal.shake #rankRevealInner { animation:rankShake .5s ease .35s; }
   </style>
 </head>
 <body>
@@ -172,6 +186,7 @@
 <button class="lobby-back-btn" id="backToLobbyBtn">← Lobby</button>
 <div id="toast"></div>
 <div id="bombToast"></div>
+<div id="rankReveal"><div id="rankRevealInner"><div id="rankRevealEmoji"></div><div id="rankRevealName"></div><div id="rankRevealLabel"></div><div id="rankRevealSub"></div></div></div>
 
 <!-- Loading -->
 <div id="loadingScreen" class="screen">
@@ -271,6 +286,7 @@
         <div class="felt-info"  id="feltInfo">— โต๊ะว่าง —</div>
       </div>
       <div class="round-tag" id="roundTag"></div>
+      <div id="timerNum"></div>
     </div>
     <div class="opp" id="oppRight"></div>
     <div id="myArea">
@@ -289,9 +305,13 @@
   <div class="result-title">จบตาที่ 1</div>
   <div class="subtitle">ผลตาแรก — แลกไพ่ก่อนตาที่ 2</div>
   <table class="rank-tbl">
-    <thead><tr><th>ตำแหน่ง</th><th>ชื่อ</th></tr></thead>
+    <thead><tr><th>อันดับ</th><th>ตำแหน่ง</th><th>ชื่อ</th></tr></thead>
     <tbody id="r1Body"></tbody>
   </table>
+  <div id="slaveHandReveal" style="display:none;flex-direction:column;align-items:center;gap:6px;width:100%">
+    <div class="swap-section-label" id="slaveHandLabel"></div>
+    <div class="swap-card-row" id="slaveHandCards"></div>
+  </div>
   <button class="btn btn-gold" id="r2Btn">🔄 เริ่มตาที่ 2 + แลกไพ่</button>
 </div>
 
@@ -299,7 +319,7 @@
 <div id="gameOverScreen" class="screen">
   <div class="result-title">🏆 จบเกม</div>
   <table class="rank-tbl">
-    <thead><tr><th>ชื่อ</th><th>ตา 1</th><th>ตา 2</th></tr></thead>
+    <thead><tr><th>อันดับ</th><th>ชื่อ</th><th>ตา 1</th><th>ตา 2</th></tr></thead>
     <tbody id="goBody"></tbody>
   </table>
   <div style="display:flex;gap:10px">
@@ -316,20 +336,32 @@ let selIdx        = new Set();
 let lastState     = null;
 let stateWatchdog = null;
 let skipRejoin    = false;
+let lastTurnPlayer = null;
+let myColor = '#FF6B6B';
+
+// ── Player colors ─────────────────────────────────────────────────────────────
+const PLAYER_COLORS = ['#FF6B6B','#4FC3F7','#81C784','#FFD54F'];
+function playerColor(state, name) {
+  const i = (state?.players||[]).findIndex(p=>p.name===name);
+  return PLAYER_COLORS[i>=0 ? i%4 : 0];
+}
 
 // ── Turn timer ────────────────────────────────────────────────────────────────
-const TURN_SEC = 30;
+const TURN_SEC = 10;
 let timerInterval = null, timerSec = 0;
-function startTimer(myTurn) {
+function startTimer() {
   stopTimer(); timerSec = TURN_SEC;
   const bar = document.getElementById('timerBar'), fill = document.getElementById('timerFill');
+  const num = document.getElementById('timerNum');
   bar.style.display = 'block'; fill.style.transition = 'none'; fill.style.width = '100%';
   fill.classList.remove('urgent');
+  num.style.display = 'block'; num.textContent = timerSec; num.classList.remove('urgent');
   setTimeout(() => { fill.style.transition = 'width 1s linear,background .4s'; }, 30);
   timerInterval = setInterval(() => {
     timerSec--;
     fill.style.width = Math.max(0, timerSec/TURN_SEC*100) + '%';
-    if (myTurn && timerSec <= 10) fill.classList.add('urgent');
+    num.textContent = Math.max(0, timerSec);
+    if (timerSec <= 10) { fill.classList.add('urgent'); num.classList.add('urgent'); }
     if (timerSec <= 0) stopTimer();
   }, 1000);
 }
@@ -337,6 +369,8 @@ function stopTimer() {
   clearInterval(timerInterval); timerInterval = null;
   document.getElementById('timerBar').style.display = 'none';
   document.getElementById('timerFill').classList.remove('urgent');
+  const num = document.getElementById('timerNum');
+  num.style.display = 'none'; num.classList.remove('urgent');
 }
 
 // ── Screens ───────────────────────────────────────────────────────────────────
@@ -505,7 +539,15 @@ function updateBtns() {
 
 function renderHand(hand) {
   const el = document.getElementById('handEl'); el.innerHTML='';
-  (hand||[]).forEach((c,i) => el.appendChild(makeCardEl(c,i,true)));
+  (hand||[]).forEach((c,i) => {
+    const card = makeCardEl(c,i,true);
+    const isSel = selIdx.has(i);
+    card.style.borderColor = isSel ? '#ffd700' : myColor;
+    card.style.boxShadow   = isSel
+      ? '0 10px 24px rgba(255,215,0,.7)'
+      : `0 2px 8px rgba(0,0,0,.4), 0 0 0 1px ${myColor}55`;
+    el.appendChild(card);
+  });
 }
 function renderTable(state) {
   const el   = document.getElementById('feltCards');
@@ -529,16 +571,25 @@ function renderTable(state) {
   const curCount  = curPlay?.cards?.length || 0;
   const curStart  = table.length - curCount;
 
+  const curColor = curPlay ? playerColor(state, curPlay.playerName) : null;
   table.forEach((c, i) => {
     const isCur = curCount > 0 && i >= curStart;
     const div   = makeCardEl(c, -1, false, isCur ? 'cur-top' : '');
+    if (isCur && curColor) {
+      div.style.borderColor = curColor;
+      div.style.boxShadow  = `0 0 12px ${curColor}99`;
+    }
     el.appendChild(div);
   });
 
   // Scroll to rightmost (latest cards)
   el.scrollLeft = el.scrollWidth;
 
-  info.textContent = curPlay ? curPlay.playerName + ' วาง' : '— รอผู้เล่น —';
+  if (curPlay) {
+    info.innerHTML = `<span style="color:${curColor};font-weight:900">${curPlay.playerName}</span>&nbsp;<span style="color:rgba(255,255,255,.4)">วาง</span>`;
+  } else {
+    info.textContent = '— รอผู้เล่น —';
+  }
 }
 function renderOpps(state) {
   const me = state.players.find(p=>p.name===myName); if(!me) return;
@@ -548,18 +599,25 @@ function renderOpps(state) {
     const el=document.getElementById(id); el.innerHTML='';
     if(!p) return;
     el.classList.toggle('opp-dc', !!p.disconnected);
+    const color = playerColor(state, p.name);
+    el.style.borderTop = `3px solid ${color}`;
     const nameRow=document.createElement('div');
-    nameRow.style.cssText='display:flex;align-items:center;gap:3px;justify-content:center';
+    nameRow.style.cssText='display:flex;align-items:center;gap:4px;justify-content:center';
     if(p.rankLabel) {
       const crown=document.createElement('span'); crown.className='opp-rank-crown';
       crown.textContent=p.rankLabel.includes('คิง')?'👑':p.rankLabel.includes('ควีน')?'👸':p.rankLabel.includes('สเลฟ')?'😵':'';
       if(crown.textContent) nameRow.appendChild(crown);
     }
-    const name=document.createElement('div'); name.className='opp-name'; name.textContent=p.name;
+    const name=document.createElement('div'); name.className='opp-name';
+    name.textContent=p.name; name.style.color=color; name.style.fontWeight='900';
     nameRow.appendChild(name); el.appendChild(nameRow);
     const isLow=p.cardCount>0&&p.cardCount<=3;
     const backs=document.createElement('div'); backs.className='opp-backs'+(isLow?' has-low':'');
-    for(let i=0;i<Math.min(p.cardCount,13);i++) { const b=document.createElement('div'); b.className='back-mini'+(isLow?' low':''); backs.appendChild(b); }
+    for(let i=0;i<Math.min(p.cardCount,13);i++) {
+      const b=document.createElement('div'); b.className='back-mini'+(isLow?' low':'');
+      if(!isLow) b.style.background=`linear-gradient(135deg,${color}99,${color})`;
+      backs.appendChild(b);
+    }
     el.appendChild(backs);
     const tag=document.createElement('div'); tag.className='opp-tag';
     if(p.disconnected&&p.cardCount>0) { tag.classList.add('tag-dc'); tag.textContent='⚠ หลุด'; }
@@ -573,17 +631,57 @@ function renderOpps(state) {
 }
 function renderMyBar(state) {
   const me=state.players.find(p=>p.name===myName), el=document.getElementById('myLabel');
+  const color = playerColor(state, myName);
+  document.getElementById('myArea').style.borderTop = `3px solid ${color}`;
   let txt=myName; if(me?.rankLabel) txt+=' · '+me.rankLabel;
   el.className=state.myTurn?'my-label my-turn':'my-label';
-  if(state.myTurn) el.textContent='▶ เทิร์นคุณ! · '+txt;
-  else if(me?.hasPassed) el.textContent='ผ่านแล้ว · '+txt;
-  else el.textContent=txt;
+  const nameSpan = `<span style="color:${color};font-weight:900">${txt}</span>`;
+  if(state.myTurn) el.innerHTML='▶ เทิร์นคุณ! · '+nameSpan;
+  else if(me?.hasPassed) el.innerHTML='ผ่านแล้ว · '+nameSpan;
+  else el.innerHTML=nameSpan;
+}
+function showRoundEnd({ ranks, slaveHand, slaveName }) {
+  stopTimer();
+  document.getElementById('feltCards').innerHTML=''; document.getElementById('feltInfo').textContent='— โต๊ะว่าง —';
+  const tbody=document.getElementById('r1Body'); tbody.innerHTML='';
+  const medals=['🥇','🥈','🥉','4️⃣'];
+  ranks.forEach(({ name, rankLabel }, i) => {
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="font-size:18px">${medals[i]||i+1}</td><td>${rankLabel}</td><td><b>${name}</b></td>`;
+    tbody.appendChild(tr);
+  });
+  const revealEl=document.getElementById('slaveHandReveal');
+  const cardsEl=document.getElementById('slaveHandCards');
+  const labelEl=document.getElementById('slaveHandLabel');
+  cardsEl.innerHTML='';
+  if (slaveHand?.length && slaveName) {
+    labelEl.textContent=`ไพ่ที่เหลือของ ${slaveName}`;
+    slaveHand.forEach(c => cardsEl.appendChild(makeSwapCardEl(c,-1,'doomed')));
+    revealEl.style.display='flex';
+  } else {
+    revealEl.style.display='none';
+  }
+  show('roundEndScreen');
 }
 function applyState(state) {
-  lastState=state; selIdx=new Set();
+  lastState = state;
+  myColor = playerColor(state, myName);
+  if (!state.myTurn) selIdx = new Set();
+  else selIdx = new Set([...selIdx].filter(i => i < (state.myHand||[]).length));
   renderHand(state.myHand); renderTable(state); renderOpps(state); renderMyBar(state);
   document.getElementById('roundTag').textContent='ตาที่ '+state.round;
-  updateBtns(); startTimer(state.myTurn);
+  updateBtns();
+  if (state.phase === 'roundEnd' && state.round1Ranks) {
+    showRoundEnd({ ranks: state.round1Ranks, slaveHand: state.slaveHand, slaveName: state.slaveName });
+    return;
+  }
+  if (state.phase === 'gameOver') return;
+  const curPlayer = state.players.find(p=>p.isTurn)?.name;
+  if (state.phase === 'playing' && curPlayer !== lastTurnPlayer) {
+    lastTurnPlayer = curPlayer;
+    if (curPlayer === myName) { startTimer(); toast('▶ เทิร์นคุณ!', 1500); }
+    else stopTimer();
+  }
 }
 
 // ── Card Swap screen ──────────────────────────────────────────────────────────
@@ -724,10 +822,14 @@ function bindSocketEvents() {
   socket.on('playerDisconnected', ({ name }) => toast(`⚠ ${name} หลุดออก รอกลับ...`,3000));
   socket.on('playerRejoined',    ({ name }) => toast(`✅ ${name} กลับเข้าเกมแล้ว`,2000));
 
-  socket.on('gameStart', ({ round }) => { show('gameScreen'); toast('ตาที่ '+round+' เริ่มแล้ว!'); resetWatchdog(); });
+  socket.on('gameStart', ({ round }) => {
+    lastTurnPlayer = null;
+    _revealQueue = []; _revealBusy = false; _pendingRoundEnd = null;
+    clearTimeout(rankRevealTimer);
+    document.getElementById('rankReveal').classList.remove('show','shake');
+    show('gameScreen'); toast('ตาที่ '+round+' เริ่มแล้ว!'); resetWatchdog();
+  });
   socket.on('state', state => { applyState(state); resetWatchdog(); });
-  socket.on('bombCut', ({ playerName, type }) => bombToast(`💥 ${type==='triple'?'สามใบตัด!':'สี่ใบตัด!'}\n${playerName}`));
-
   socket.on('coup', ({ usurper, deposed }) => {
     bombToast(`👑 COUP!\n${usurper} โค่นบัลลังก์!\n${deposed} → สเลฟ 😵`);
   });
@@ -735,26 +837,91 @@ function bindSocketEvents() {
   socket.on('invalid', msg => toast(msg));
   socket.on('err',     msg => toast(msg));
 
-  socket.on('roundEnd', ranks => {
-    stopTimer();
-    document.getElementById('feltCards').innerHTML=''; document.getElementById('feltInfo').textContent='— โต๊ะว่าง —';
-    const tbody=document.getElementById('r1Body'); tbody.innerHTML='';
-    ranks.forEach(({ name, rankLabel }) => {
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${rankLabel}</td><td><b>${name}</b></td>`; tbody.appendChild(tr);
-    });
-    show('roundEndScreen');
+  let _revealQueue = [], _revealBusy = false, rankRevealTimer = null;
+  let _pendingRoundEnd = null;
+
+  function _doReveal(name, rankLabel) {
+    const isMine = name === myName;
+    const cfg = rankLabel.includes('คิง')    ? { emoji:'👑', color:'#ffd700', sub:isMine?'คุณชนะแล้ว!':'คนนี้ชนะแล้ว!', border:'#ffd700' }
+               : rankLabel.includes('ควีน')  ? { emoji:'👸', color:'#e879f9', sub:isMine?'เก่งมาก!':'เก่งมาก!', border:'#e879f9' }
+               : rankLabel.includes('สามัญ') ? { emoji:'🧑', color:'#81c784', sub:isMine?'ไม่แย่!':'ไม่แย่!', border:'#81c784' }
+               :                               { emoji:'😵', color:'#e74c3c', sub:isMine?'ล้มเหลว...':'กลายเป็นทาส...', border:'#e74c3c' };
+    const el = document.getElementById('rankReveal');
+    document.getElementById('rankRevealEmoji').textContent  = cfg.emoji;
+    document.getElementById('rankRevealName').textContent   = name;
+    document.getElementById('rankRevealLabel').textContent  = rankLabel;
+    document.getElementById('rankRevealLabel').style.color  = cfg.color;
+    document.getElementById('rankRevealSub').textContent    = cfg.sub;
+    document.getElementById('rankRevealInner').style.borderColor = cfg.border;
+    document.getElementById('rankRevealInner').style.boxShadow   = `0 0 32px ${cfg.border}55`;
+    el.classList.remove('show','shake'); void el.offsetWidth;
+    el.classList.add('show', rankLabel.includes('สเลฟ') ? 'shake' : '');
+    clearTimeout(rankRevealTimer);
+    const dur = isMine ? 2200 : 1800;
+    rankRevealTimer = setTimeout(() => {
+      el.classList.remove('show','shake');
+      setTimeout(_nextReveal, 200);
+    }, dur);
+  }
+
+  function _nextReveal() {
+    if (!_revealQueue.length) {
+      _revealBusy = false;
+      if (_pendingRoundEnd) {
+        const ranks = _pendingRoundEnd;
+        _pendingRoundEnd = null;
+        setTimeout(() => showRoundEnd(ranks), 400);
+      }
+      return;
+    }
+    _revealBusy = true;
+    const { name, rankLabel } = _revealQueue.shift();
+    _doReveal(name, rankLabel);
+  }
+
+  function enqueueReveal(name, rankLabel) {
+    _revealQueue.push({ name, rankLabel });
+    if (!_revealBusy) _nextReveal();
+  }
+
+  socket.on('playerFinished', ({ name, rankLabel }) => {
+    enqueueReveal(name, rankLabel);
+    if (lastState) {
+      const p = lastState.players.find(p => p.name === name);
+      if (p) { p.rankLabel = rankLabel; renderOpps(lastState); renderMyBar(lastState); }
+    }
+  });
+
+  socket.on('roundEnd', data => {
+    _revealQueue = []; _revealBusy = false; _pendingRoundEnd = null;
+    clearTimeout(rankRevealTimer);
+    document.getElementById('rankReveal').classList.remove('show','shake');
+    showRoundEnd(data);
   });
 
   socket.on('gameOver', ({ r1, r2 }) => {
     stopTimer();
     document.getElementById('feltCards').innerHTML=''; document.getElementById('feltInfo').textContent='— โต๊ะว่าง —';
     const tbody=document.getElementById('goBody'); tbody.innerHTML='';
-    const names=[...new Set([...r1.map(r=>r.name),...r2.map(r=>r.name)])];
-    names.forEach(name => {
+    const medals=['🥇','🥈','🥉','4️⃣'];
+    const score=label=>label?.includes('คิง')?1:label?.includes('ควีน')?2:label?.includes('สามัญ')?3:label?.includes('สเลฟ')?4:99;
+    const allNames=[...new Set([...r1.map(r=>r.name),...r2.map(r=>r.name)])];
+    const r1King=r1.find(r=>r.rankLabel?.includes('คิง'))?.name;
+    const r1Slave=r1.find(r=>r.rankLabel?.includes('สเลฟ'))?.name;
+    const r2King=r2.find(r=>r.rankLabel?.includes('คิง'))?.name;
+    const isCoup=r1Slave&&r2King&&r1Slave===r2King;
+    const combinedScore=n=>(score(r1.find(r=>r.name===n)?.rankLabel)||0)+(score(r2.find(r=>r.name===n)?.rankLabel)||0);
+    let sorted;
+    if(isCoup){
+      const middle=allNames.filter(n=>n!==r1Slave&&n!==r1King).sort((a,b)=>combinedScore(a)-combinedScore(b));
+      sorted=[r1Slave,...middle,r1King];
+    } else {
+      sorted=[...allNames].sort((a,b)=>combinedScore(a)-combinedScore(b));
+    }
+    sorted.forEach((name,i)=>{
       const a=r1.find(r=>r.name===name), b=r2.find(r=>r.name===name);
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td><b>${name}</b></td><td>${a?.rankLabel||'-'}</td><td>${b?.rankLabel||'-'}</td>`;
+      tr.innerHTML=`<td style="font-size:18px">${medals[i]||i+1}</td><td><b>${name}</b></td><td>${a?.rankLabel||'-'}</td><td>${b?.rankLabel||'-'}</td>`;
       tbody.appendChild(tr);
     });
     show('gameOverScreen');
