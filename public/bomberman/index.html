@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetWar | เน็ตดอยมินิเกม</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --gold: #ffd700; --dark: #0a0a1a; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 50% 20%, #1e0b4a 0%, #0a0a1a 70%);
+      color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 16px 60px; user-select: none;
+    }
+    .screen { display: none; width: 100%; max-width: 440px; flex-direction: column; align-items: center; gap: 14px; }
+    .screen.active { display: flex; }
+    .logo-badge { display: inline-block; background: linear-gradient(135deg, var(--gold), #ff8c00); color: #1a0a2e; font-size: 10px; font-weight: 900; letter-spacing: 3px; padding: 4px 18px; border-radius: 20px; text-transform: uppercase; }
+    .logo-title { font-size: clamp(26px, 7vw, 44px); font-weight: 900; color: var(--gold); text-shadow: 0 0 24px rgba(255,215,0,.5); text-align: center; }
+    .logo-sub { font-size: 13px; color: rgba(255,255,255,.4); letter-spacing: 2px; }
+    .hub-user { font-size: 12px; color: rgba(255,255,255,.35); }
+    .hub-user span { color: var(--gold); font-weight: 700; }
+    .btn { padding: 12px 36px; font-size: 15px; font-weight: 800; border: none; border-radius: 50px; cursor: pointer; font-family: inherit; transition: transform .15s, box-shadow .15s, opacity .15s; width: 100%; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-gold { background: linear-gradient(135deg, var(--gold), #ff8c00); color: #1a0a2e; }
+    .btn-gold:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,165,0,.5); }
+    .btn-ghost { background: rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 12px; padding: 8px 20px; }
+    .btn-ghost:hover { background: rgba(255,255,255,.14); }
+    .card { background: linear-gradient(135deg, #1e0b4a 0%, #0b1e3d 100%); border: 2px solid rgba(255,215,0,.2); border-radius: 16px; padding: 16px; width: 100%; }
+    .card-label { font-size: 11px; color: rgba(255,255,255,.3); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+    input[type=text] {
+      width: 100%; padding: 12px 18px; font-size: 15px;
+      border: 2px solid rgba(255,215,0,.3); border-radius: 50px;
+      background: rgba(0,0,0,.35); color: #fff; outline: none; text-align: center; font-family: inherit;
+    }
+    input::placeholder { color: rgba(255,255,255,.3); }
+    input:focus { border-color: var(--gold); }
+    .room-list { display: flex; flex-direction: column; gap: 8px; width: 100%; max-height: 220px; overflow-y: auto; }
+    .room-list::-webkit-scrollbar { width: 3px; }
+    .room-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.2); border-radius: 2px; }
+    .room-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(0,0,0,.3); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; }
+    .room-name { flex: 1; font-size: 13px; font-weight: 700; color: #fff; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .room-code { font-size: 13px; font-weight: 900; color: var(--gold); letter-spacing: 3px; font-family: monospace; }
+    .room-count { font-size: 11px; color: rgba(255,255,255,.35); white-space: nowrap; }
+    .room-join { padding: 6px 16px; font-size: 12px; font-weight: 700; border: none; border-radius: 20px; cursor: pointer; background: rgba(74,222,128,.15); color: #4ade80; border: 1px solid rgba(74,222,128,.3); font-family: inherit; transition: transform .12s; }
+    .room-join:hover { transform: translateY(-1px); }
+    .room-join:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+    .empty-msg { font-size: 12px; color: rgba(255,255,255,.25); text-align: center; padding: 16px; }
+    .join-row { display: flex; gap: 8px; width: 100%; }
+    .join-row input { flex: 1; letter-spacing: 4px; font-weight: 700; font-size: 16px; }
+    .err { color: #e74c3c; font-size: 12px; min-height: 18px; text-align: center; }
+    .divider { width: 100%; display: flex; align-items: center; gap: 8px; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.1); }
+    .divider span { font-size: 11px; color: rgba(255,255,255,.25); }
+    .create-form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .home-link { font-size: 12px; color: rgba(255,255,255,.3); text-decoration: none; transition: color .15s; }
+    .home-link:hover { color: rgba(255,255,255,.6); }
+    #loading { font-size: 14px; color: rgba(255,255,255,.4); letter-spacing: 2px; }
+  </style>
+</head>
+<body>
+
+<p id="loading">กำลังเชื่อมต่อ…</p>
+
+<div id="mainScreen" class="screen">
+  <div class="logo-badge">💣 Mini Game</div>
+  <div class="logo-title">📡 NetWar</div>
+  <div class="logo-sub">Packet Battle · 4 ผู้เล่น · มีบอท</div>
+  <div class="hub-user">สวัสดี, <span id="userName"></span></div>
+
+  <!-- Create room -->
+  <div class="card">
+    <div class="card-label">สร้างห้อง</div>
+    <div class="create-form">
+      <input type="text" id="roomNameInput" placeholder="ชื่อห้อง (ไม่บังคับ)" maxlength="24">
+      <button class="btn btn-gold" id="createBtn">+ สร้างห้องใหม่</button>
+    </div>
+  </div>
+
+  <!-- Join by code -->
+  <div class="divider"><span>หรือกรอกรหัส</span></div>
+  <div class="join-row">
+    <input type="text" id="joinCodeInput" placeholder="CODE" maxlength="4">
+    <button class="btn btn-ghost" id="joinCodeBtn" style="width:auto;padding:12px 22px">เข้าร่วม</button>
+  </div>
+  <div class="err" id="errMsg"></div>
+
+  <!-- Room list -->
+  <div class="card" style="gap:0">
+    <div class="card-label">ห้องที่เปิดอยู่</div>
+    <div class="room-list" id="roomList">
+      <div class="empty-msg">ยังไม่มีห้อง</div>
+    </div>
+  </div>
+
+  <a href="/" class="home-link">← กลับ Hub</a>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const TOKEN_KEY = 'netdoiToken';
+let socket = null;
+let myName = '';
+
+function getToken() {
+  const t = localStorage.getItem(TOKEN_KEY);
+  if (!t) { window.location.href = '/'; return null; }
+  try {
+    const p = JSON.parse(atob(t.split('.')[1]));
+    if (p.exp * 1000 <= Date.now()) { localStorage.removeItem(TOKEN_KEY); window.location.href = '/'; return null; }
+    return { token: t, username: p.username };
+  } catch { localStorage.removeItem(TOKEN_KEY); window.location.href = '/'; return null; }
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errMsg');
+  el.textContent = msg;
+  setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+function renderRooms(list) {
+  const box = document.getElementById('roomList');
+  box.innerHTML = '';
+  if (!list.length) { box.innerHTML = '<div class="empty-msg">ยังไม่มีห้อง — สร้างห้องแรกเลย</div>'; return; }
+  list.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'room-item';
+    div.innerHTML = `
+      <span class="room-code">${r.code}</span>
+      <span class="room-name">${r.roomName}</span>
+      <span class="room-count">${r.humanCount}${r.botCount > 0 ? '+' + r.botCount + '🤖' : ''}/4</span>
+    `;
+    const btn = document.createElement('button');
+    btn.className = 'room-join';
+    btn.textContent = r.playerCount >= 4 ? 'เต็ม' : 'เข้าร่วม';
+    btn.disabled = r.playerCount >= 4;
+    btn.onclick = () => joinRoom(r.code);
+    div.appendChild(btn);
+    box.appendChild(div);
+  });
+}
+
+function joinRoom(code) {
+  if (!socket) return;
+  socket.emit('joinRoom', { code: code.toUpperCase() });
+}
+
+function init() {
+  const auth = getToken();
+  if (!auth) return;
+  myName = auth.username;
+  document.getElementById('userName').textContent = myName;
+
+  socket = io('/bomberman', { auth: { token: auth.token } });
+
+  socket.on('connect_error', () => {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = '/';
+  });
+
+  socket.on('connect', () => {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('mainScreen').classList.add('active');
+    socket.emit('listRooms');
+  });
+
+  socket.on('roomList', renderRooms);
+  socket.on('roomListUpdate', renderRooms);
+
+  socket.on('roomCreated', room => {
+    window.location.href = `/bomberman/room.html?code=${room.code}`;
+  });
+
+  socket.on('roomJoined', room => {
+    window.location.href = `/bomberman/room.html?code=${room.code}`;
+  });
+
+  socket.on('joinedAsSpectator', room => {
+    window.location.href = `/bomberman/room.html?code=${room.code}&spectator=1`;
+  });
+
+  socket.on('joinError', msg => showErr(msg));
+}
+
+document.getElementById('createBtn').addEventListener('click', () => {
+  if (!socket) return;
+  const roomName = document.getElementById('roomNameInput').value.trim();
+  socket.emit('createRoom', { roomName });
+});
+
+document.getElementById('joinCodeInput').addEventListener('input', e => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+});
+document.getElementById('joinCodeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('joinCodeBtn').click();
+});
+document.getElementById('joinCodeBtn').addEventListener('click', () => {
+  const code = document.getElementById('joinCodeInput').value.trim();
+  if (code) joinRoom(code);
+});
+
+// auto-fill from URL ?join=XXXX
+const joinParam = new URLSearchParams(window.location.search).get('join');
+if (joinParam) document.getElementById('joinCodeInput').value = joinParam.toUpperCase();
+
+init();
+</script>
+</body>
+</html>

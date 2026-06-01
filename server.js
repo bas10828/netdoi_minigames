@@ -49,6 +49,7 @@ app.post('/api/login', async (req, res) => {
 // ── Games ─────────────────────────────────────────────────────────────────────
 require('./games/slave')(app, io, JWT_SECRET);
 require('./games/jigsaw')(app, pool, JWT_SECRET);
+require('./games/bomberman')(app, io, pool, JWT_SECRET);
 
 const PORT = process.env.PORT || 3000;
 httpSv.listen(PORT, '0.0.0.0', () => console.log(`🎮 Server → http://localhost:${PORT}`));
